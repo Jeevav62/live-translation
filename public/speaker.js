@@ -10,9 +10,26 @@ const els = {
   conn: document.getElementById('conn'),
   count: document.getElementById('count'),
   error: document.getElementById('error'),
+  roomcode: document.getElementById('roomcode'),
+  qr: document.getElementById('qr'),
+  copy: document.getElementById('copy'),
 };
 
 els.room.innerHTML = `<option>${roomId}</option>`;
+
+// Show the room code + a QR encoding the listener join link for this room.
+const listenerUrl = `${location.origin}/listener.html?room=${encodeURIComponent(roomId)}`;
+els.roomcode.textContent = roomId;
+els.qr.src = `/api/qr?data=${encodeURIComponent(listenerUrl)}`;
+els.copy.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(listenerUrl);
+    els.copy.textContent = 'Copied ✓';
+    setTimeout(() => (els.copy.textContent = 'Copy listener link'), 1500);
+  } catch {
+    els.copy.textContent = listenerUrl;
+  }
+});
 
 let ws = null;
 let audioCtx = null;

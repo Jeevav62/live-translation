@@ -12,6 +12,7 @@ const els = {
   join: document.getElementById('join'),
   conn: document.getElementById('conn'),
   speaker: document.getElementById('speaker'),
+  latency: document.getElementById('latency'),
   error: document.getElementById('error'),
 };
 els.room.innerHTML = `<option>${roomId}</option>`;
@@ -20,8 +21,28 @@ let ws = null;
 let audioCtx = null;
 let nextTime = 0;
 let listening = false;
+let speakerLang = null; // learned from server; lets us show "raw relay" vs translated
 
 els.join.addEventListener('click', () => (listening ? stop() : start()));
+
+// Switch the language you hear, mid-session, without rejoining.
+els.lang.addEventListener('change', () => {
+  if (!listening || !ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ type: 'set-lang', lang: els.lang.value }));
+  nextTime = 0; // reset playback schedule for the new stream
+  updateLatencyLabel();
+});
+
+// Show "raw relay" when we want the speaker's own language (no AI), otherwise
+// wait for the server to push real translated-path latency numbers.
+function updateLatencyLabel() {
+  if (!listening) { els.latency.textContent = '—'; return; }
+  if (speakerLang && els.lang.value === speakerLang) {
+    els.latency.textContent = 'raw relay (~instant)';
+  } else {
+    els.latency.textContent = 'measuring…';
+  }
+}
 
 async function start() {
   els.error.textContent = '';
@@ -58,18 +79,23 @@ function connect() {
   listening = true;
   els.join.textContent = 'Stop';
   els.join.classList.add('stop');
-  els.lang.disabled = true;
+  updateLatencyLabel();
 }
 
 function handleControl(msg) {
   if (msg.type === 'joined') {
     els.conn.textContent = 'connected';
+    speakerLang = msg.speakerLang || speakerLang;
+    updateLatencyLabel();
   } else if (msg.type === 'audio-format') {
     incomingRate = msg.sampleRate || 16000;
   } else if (msg.type === 'speaker-status') {
-    els.speaker.textContent = msg.live
-      ? `live (${msg.speakerLang || '?'})`
-      : 'not live';
+    speakerLang = msg.speakerLang || speakerLang;
+    els.speaker.textContent = msg.live ? `live (${msg.speakerLang || '?'})` : 'not live';
+    updateLatencyLabel();
+  } else if (msg.type === 'latency') {
+    // Translated path: server pushes per-utterance E2E + running median.
+    els.latency.textContent = `${(msg.last / 1000).toFixed(1)}s · median ${(msg.p50 / 1000).toFixed(1)}s (n=${msg.count})`;
   } else if (msg.type === 'error') {
     els.error.textContent = msg.message;
   }
@@ -95,9 +121,10 @@ function stop() {
   listening = false;
   els.join.textContent = 'Listen';
   els.join.classList.remove('stop');
-  els.lang.disabled = false;
   els.conn.textContent = 'idle';
   els.speaker.textContent = '—';
+  els.latency.textContent = '—';
+  speakerLang = null;
   if (ws) { ws.close(); ws = null; }
   if (audioCtx) { audioCtx.close(); audioCtx = null; }
 }

@@ -68,6 +68,7 @@ export function recordUtterance(key, scope, sample) {
     scope,
     `${parts.join(' · ')}  |  E2E avg ${e.avg} · p50 ${e.p50} · p95 ${e.p95}ms (n=${e.count})`
   );
+  return e; // E2E aggregate summary, so callers can surface it (e.g. to listeners)
 }
 
 // Full aggregate snapshot for the /metrics endpoint.
