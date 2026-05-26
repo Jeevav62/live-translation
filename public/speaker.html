@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Speaker — Translation Rooms</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
+      h1 { font-size: 1.3rem; }
+      label { display: block; margin: 16px 0 4px; font-weight: 600; }
+      select, button { font-size: 1rem; padding: 10px; width: 100%; box-sizing: border-box; }
+      button { margin-top: 20px; border: 0; border-radius: 8px; background: #2563eb; color: #fff; cursor: pointer; }
+      button:disabled { background: #9ca3af; cursor: default; }
+      button.live { background: #dc2626; }
+      #status { margin-top: 20px; padding: 12px; border-radius: 8px; background: #f3f4f6; }
+      .row { display: flex; justify-content: space-between; margin: 6px 0; }
+      .err { color: #dc2626; }
+    </style>
+  </head>
+  <body>
+    <h1>Speaker</h1>
+    <label for="room">Room</label>
+    <select id="room"></select>
+    <label for="lang">I will speak in</label>
+    <select id="lang">
+      <option value="hi">Hindi</option>
+      <option value="en">English</option>
+    </select>
+    <button id="go">Go Live</button>
+    <div id="status">
+      <div class="row"><span>Connection</span><strong id="conn">idle</strong></div>
+      <div class="row"><span>Listeners</span><strong id="count">0</strong></div>
+      <div class="row err"><span id="error"></span></div>
+    </div>
+    <script type="module" src="speaker.js"></script>
+  </body>
+</html>

@@ -1,0 +1,50 @@
+import 'dotenv/config';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import http from 'node:http';
+import express from 'express';
+import { WebSocketServer } from 'ws';
+import { handleConnection } from './signaling.js';
+import { log } from './log.js';
+import { snapshot } from './metrics.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PORT = process.env.PORT || 3000;
+
+const app = express();
+app.use(express.static(join(__dirname, '..', 'public')));
+
+// Live latency aggregates (avg/p50/p95/min/max per room+language) for the
+// translated path. Handy during the demo: open in a tab or curl it.
+app.get('/metrics', (_req, res) => res.json(snapshot()));
+
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server, path: '/ws' });
+
+wss.on('connection', handleConnection);
+
+// Heartbeat: drop dead sockets so rooms don't keep ghost connections.
+const HEARTBEAT_MS = 30000;
+const interval = setInterval(() => {
+  for (const ws of wss.clients) {
+    if (ws.isAlive === false) {
+      ws.terminate();
+      continue;
+    }
+    ws.isAlive = false;
+    ws.ping();
+  }
+}, HEARTBEAT_MS);
+wss.on('close', () => clearInterval(interval));
+
+const keyState = process.env.SARVAM_API_KEY && process.env.SARVAM_API_KEY !== 'PASTE_YOUR_KEY_HERE'
+  ? 'loaded'
+  : 'MISSING (translation disabled — relay still works)';
+
+server.listen(PORT, () => {
+  log.info(`listening on http://localhost:${PORT}`);
+  log.info(`Sarvam API key: ${keyState}`);
+  log.info(`Speaker:  http://localhost:${PORT}/speaker.html?room=main`);
+  log.info(`Listener: http://localhost:${PORT}/listener.html?room=main`);
+  log.info(`Metrics:  http://localhost:${PORT}/metrics`);
+});

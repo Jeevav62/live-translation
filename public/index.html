@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Translation Rooms</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 480px; margin: 60px auto; padding: 0 16px; text-align: center; }
+      h1 { font-size: 1.4rem; }
+      a { display: block; margin: 16px 0; padding: 16px; border-radius: 8px; text-decoration: none; color: #fff; font-weight: 600; }
+      .speaker { background: #2563eb; }
+      .listener { background: #16a34a; }
+      input { font-size: 1rem; padding: 10px; width: 200px; }
+    </style>
+  </head>
+  <body>
+    <h1>Translation Rooms</h1>
+    <p>Room: <input id="room" value="main" /></p>
+    <a class="speaker" id="speak" href="#">Join as Speaker</a>
+    <a class="listener" id="listen" href="#">Join as Listener</a>
+    <script>
+      const room = document.getElementById('room');
+      const upd = () => {
+        const q = '?room=' + encodeURIComponent(room.value || 'main');
+        document.getElementById('speak').href = 'speaker.html' + q;
+        document.getElementById('listen').href = 'listener.html' + q;
+      };
+      room.addEventListener('input', upd);
+      upd();
+    </script>
+  </body>
+</html>
