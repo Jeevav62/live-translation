@@ -7,6 +7,7 @@ import { WebSocketServer } from 'ws';
 import { handleConnection } from './signaling.js';
 import { log } from './log.js';
 import { snapshot } from './metrics.js';
+import { costSnapshot } from './cost.js';
 import { qrPng } from './qr.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -18,6 +19,9 @@ app.use(express.static(join(__dirname, '..', 'public')));
 // Live latency aggregates (avg/p50/p95/min/max per room+language) for the
 // translated path. Handy during the demo: open in a tab or curl it.
 app.get('/metrics', (_req, res) => res.json(snapshot()));
+
+// Estimated Sarvam cost: exact usage (audio seconds / chars) x configurable rates.
+app.get('/cost', (_req, res) => res.json(costSnapshot()));
 
 // QR code (PNG) for a room join link. e.g. /api/qr?data=https://host/listener.html?room=abc123
 app.get('/api/qr', async (req, res) => {
@@ -61,4 +65,5 @@ server.listen(PORT, () => {
   log.info(`Speaker:  http://localhost:${PORT}/speaker.html?room=main`);
   log.info(`Listener: http://localhost:${PORT}/listener.html?room=main`);
   log.info(`Metrics:  http://localhost:${PORT}/metrics`);
+  log.info(`Cost:     http://localhost:${PORT}/cost`);
 });

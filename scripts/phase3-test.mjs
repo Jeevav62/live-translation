@@ -16,6 +16,7 @@ import { createTTS } from '../src/pipeline/sarvamTTS.js';
 import { routePath, syncPipelines, feedAudio, destroyPipelines } from '../src/pipeline/index.js';
 import { getOrCreateRoom, joinAsSpeaker, joinAsListener } from '../src/rooms.js';
 import { snapshot } from '../src/metrics.js';
+import { costSnapshot } from '../src/cost.js';
 
 const SR = 16000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -140,6 +141,15 @@ async function main() {
   assert(snap[key].e2e_ms.count >= 1, `e2e latency captured (n=${snap[key].e2e_ms.count})`);
   assert(snap[key].tts_ms.count >= 1, 'tts latency captured');
   console.log('  snapshot:', JSON.stringify(snap[key], null, 2).replace(/\n/g, '\n  '));
+
+  console.log('\n=== cost calculator (Phase 4) ===');
+  const cost = costSnapshot();
+  const ck = cost.perPipeline[key];
+  assert(!!ck, 'cost recorded for en->hi');
+  assert(ck.usage.sttSeconds > 0, `STT audio billed (${ck.usage.sttSeconds}s)`);
+  assert(ck.usage.ttsChars > 0, `TTS chars billed (${ck.usage.ttsChars} chars)`);
+  assert(ck.usage.translateChars > 0, `translate chars billed (${ck.usage.translateChars} chars)`);
+  console.log(`  this utterance ≈ ${cost.currency} ${ck.cost.total} (rates are placeholders) — usage:`, JSON.stringify(ck.usage));
 
   destroyPipelines(room);
   console.log('\nAll Phase 3 checks passed. ✅');
