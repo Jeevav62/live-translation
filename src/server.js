@@ -14,6 +14,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
 
 const app = express();
+
+// Health check for the platform/proxy (Easypanel, Traefik, etc.).
+app.get('/health', (_req, res) => res.json({ ok: true, uptime: process.uptime() }));
+
 app.use(express.static(join(__dirname, '..', 'public')));
 
 // Live latency aggregates (avg/p50/p95/min/max per room+language) for the
