@@ -8,6 +8,7 @@ import { createSTT, createTTS, translateText } from './provider.js';
 import { sendToLang, sendControlToLang } from '../relay.js';
 import { log } from '../log.js';
 import { recordUtterance } from '../metrics.js';
+import { recordSttAudio, recordTtsChars, recordTranslateChars, costLine } from '../cost.js';
 
 export const LISTENER_SAMPLE_RATE = 16000; // PCM16 rate listeners play (relay + TTS)
 
@@ -93,6 +94,7 @@ class TranslationPipeline {
     if (this.path === 'stt_transcribe_translate') {
       // English text -> target-language text -> speak.
       const t0 = Date.now();
+      recordTranslateChars(this.metricKey, text.length);
       translateText({ apiKey: this.apiKey, text, from: this.speakerLang, to: this.targetLang })
         .then((translated) => {
           const translate_ms = Date.now() - t0;
@@ -111,6 +113,7 @@ class TranslationPipeline {
 
   speak(text, timing) {
     if (!text) return;
+    recordTtsChars(this.metricKey, text.length);
     this.awaitingAudio = { spokeAt: Date.now(), ...timing };
     log.tts(this.scope, `speaking: "${text}"`);
     this.tts.sendText(text);
@@ -147,6 +150,8 @@ class TranslationPipeline {
 
   feed(pcm) {
     if (hasVoice(pcm)) this.lastVoiceAt = Date.now();
+    // Every frame sent to STT is billable audio: bytes / 2 = samples, / rate = seconds.
+    recordSttAudio(this.metricKey, pcm.length / 2 / LISTENER_SAMPLE_RATE);
     this.stt?.sendAudio(pcm);
   }
 
@@ -154,6 +159,7 @@ class TranslationPipeline {
     this.stt?.close();
     this.tts?.close();
     log.pipe(this.scope, `STOPPED (handled ${this.utterances} utterance${this.utterances === 1 ? '' : 's'})`);
+    log.metric(this.scope, `est. cost: ${costLine(this.metricKey)}`);
   }
 }
 
