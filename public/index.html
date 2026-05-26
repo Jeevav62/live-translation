@@ -3,30 +3,61 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Translation Rooms</title>
+    <title>Live Translation</title>
     <style>
-      body { font-family: system-ui, sans-serif; max-width: 480px; margin: 60px auto; padding: 0 16px; text-align: center; }
-      h1 { font-size: 1.4rem; }
-      a { display: block; margin: 16px 0; padding: 16px; border-radius: 8px; text-decoration: none; color: #fff; font-weight: 600; }
+      body { font-family: system-ui, sans-serif; max-width: 480px; margin: 56px auto; padding: 0 16px; }
+      h1 { font-size: 1.5rem; text-align: center; }
+      p.sub { text-align: center; color: #6b7280; margin-top: -8px; }
+      .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin: 20px 0; }
+      .card h2 { font-size: 1.05rem; margin: 0 0 4px; }
+      .card p { color: #6b7280; margin: 0 0 14px; font-size: 0.9rem; }
+      button, .btn { font-size: 1rem; padding: 14px; width: 100%; box-sizing: border-box; border: 0; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer; text-align: center; display: block; text-decoration: none; }
       .speaker { background: #2563eb; }
       .listener { background: #16a34a; }
-      input { font-size: 1rem; padding: 10px; width: 200px; }
+      .join-row { display: flex; gap: 8px; }
+      .join-row input { flex: 1; font-size: 1rem; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; text-transform: lowercase; }
+      .join-row button { width: auto; padding: 12px 18px; }
     </style>
   </head>
   <body>
-    <h1>Translation Rooms</h1>
-    <p>Room: <input id="room" value="main" /></p>
-    <a class="speaker" id="speak" href="#">Join as Speaker</a>
-    <a class="listener" id="listen" href="#">Join as Listener</a>
+    <h1>🗣️ Live Translation</h1>
+    <p class="sub">Real-time multilingual audio for presentation rooms</p>
+
+    <div class="card">
+      <h2>Host a room</h2>
+      <p>Start speaking. Your audience scans a QR code to join and hears you in their own language.</p>
+      <button class="speaker" id="host">Host a new room →</button>
+    </div>
+
+    <div class="card">
+      <h2>Join a room</h2>
+      <p>Enter the room code shared by the speaker (or just scan their QR code).</p>
+      <div class="join-row">
+        <input id="code" placeholder="room code" autocomplete="off" />
+        <button class="listener" id="join">Join</button>
+      </div>
+    </div>
+
     <script>
-      const room = document.getElementById('room');
-      const upd = () => {
-        const q = '?room=' + encodeURIComponent(room.value || 'main');
-        document.getElementById('speak').href = 'speaker.html' + q;
-        document.getElementById('listen').href = 'listener.html' + q;
+      // Short, readable, unambiguous room id (no 0/o/1/l/i confusion).
+      function newRoomId() {
+        const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+        let id = '';
+        for (let i = 0; i < 6; i++) id += alphabet[Math.floor(Math.random() * alphabet.length)];
+        return id;
+      }
+
+      document.getElementById('host').addEventListener('click', () => {
+        location.href = 'speaker.html?room=' + newRoomId();
+      });
+
+      const code = document.getElementById('code');
+      const go = () => {
+        const id = (code.value || '').trim().toLowerCase();
+        if (id) location.href = 'listener.html?room=' + encodeURIComponent(id);
       };
-      room.addEventListener('input', upd);
-      upd();
+      document.getElementById('join').addEventListener('click', go);
+      code.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
     </script>
   </body>
 </html>

@@ -5,7 +5,7 @@
 // out to all listeners of that language.
 
 import { createSTT, createTTS, translateText } from './provider.js';
-import { sendToLang } from '../relay.js';
+import { sendToLang, sendControlToLang } from '../relay.js';
 import { log } from '../log.js';
 import { recordUtterance } from '../metrics.js';
 
@@ -127,11 +127,19 @@ class TranslationPipeline {
         this.scope,
         `first audio out (+${tts_ms}ms TTS · +${now - a.transcriptAt}ms transcript->audio)`
       );
-      recordUtterance(this.metricKey, this.scope, {
+      const e2e = recordUtterance(this.metricKey, this.scope, {
         stt_ms: a.stt_ms,
         translate_ms: a.translate_ms,
         tts_ms,
         e2e_ms,
+      });
+      // Push the latency readout to this language's listeners.
+      sendControlToLang(this.room, this.targetLang, {
+        type: 'latency',
+        last: e2e_ms,
+        p50: e2e.p50,
+        p95: e2e.p95,
+        count: e2e.count,
       });
     }
     sendToLang(this.room, this.targetLang, pcm);

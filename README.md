@@ -139,4 +139,4 @@ scripts/
 - [x] **Phase 1** — Same-language relay end-to-end
 - [x] **Phase 2** — Hindi → English translation pipeline
 - [x] **Phase 3** — English → Hindi + full routing + latency metrics
-- [ ] **Phase 4** — QR codes, multi-room landing page, listener-side latency readout, robustness
+- [x] **Phase 4** — QR codes, multi-room landing page, listener-side latency readout, mid-session language switching
