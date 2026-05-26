@@ -129,8 +129,39 @@ public/
 scripts/
   ws-test.mjs            relay smoke test (no API)
   sarvam-test.mjs        Sarvam STT/TTS round-trip self-test
-  phase3-test.mjs        full English→Hindi pipeline + metrics verification
+  phase3-test.mjs        full English→Hindi pipeline + metrics + cost verification
+  multiroom-test.mjs     multi-room isolation + QR endpoint verification
 ```
+
+---
+
+## Observability
+
+| Endpoint | What it gives you |
+|----------|-------------------|
+| `GET /health` | liveness check (`{ ok, uptime }`) |
+| `GET /metrics` | per-stage latency aggregates (avg / p50 / p95 / min / max) per room+language |
+| `GET /cost` | exact billable usage (STT seconds, TTS/translate chars) × configurable rates |
+
+Cost rates are placeholders — set the real Sarvam values via env (no redeploy):
+`SARVAM_STT_RATE_PER_MIN`, `SARVAM_TTS_RATE_PER_1K_CHARS`, `SARVAM_TRANSLATE_RATE_PER_1K_CHARS`, `SARVAM_CURRENCY`.
+
+---
+
+## Deployment (Easypanel / Docker)
+
+The repo ships a `Dockerfile`. HTTPS is **required** in production (browsers block
+microphone access without it) — the client auto-uses `wss://` when served over HTTPS.
+
+**On Easypanel:**
+1. Create an app from this GitHub repo, branch `phase-4-qr-multiroom` (or your deploy branch).
+2. Build method: **Dockerfile**. App port: **3000**.
+3. Add environment variables:
+   - `SARVAM_API_KEY` = your key (required for translation; the repo never contains it)
+   - optionally the `SARVAM_*_RATE_*` cost vars above
+4. Attach your domain — Easypanel provisions HTTPS automatically. WebSockets pass
+   through its proxy by default; the app's 30s heartbeat keeps them alive.
+5. Open the domain → **Host a room** → share the QR with your audience.
 
 ---
 
