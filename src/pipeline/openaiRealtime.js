@@ -30,7 +30,7 @@ const OPENAI_RATE = 24000; // gpt-realtime-translate audio rate
 // rejects it as unknown) — the model decides phrase boundaries itself and waits
 // for a brief pause. We can only set the output language + noise reduction.
 
-export function createOpenAITranslator({ targetLang, label = '', onAudio, onTranscriptDone, onError }) {
+export function createOpenAITranslator({ targetLang, label = '', onAudio, onCaption, onSegmentDone, onError }) {
   const apiKey = currentKey();
   const ws = new WebSocket(URL, {
     headers: {
@@ -41,6 +41,7 @@ export function createOpenAITranslator({ targetLang, label = '', onAudio, onTran
 
   let ready = false;
   const pending = []; // 24kHz base64 chunks queued before the socket opens
+  let caption = ''; // accumulates the current target-language transcript line
 
   ws.on('open', () => {
     ws.send(JSON.stringify({
@@ -67,9 +68,16 @@ export function createOpenAITranslator({ targetLang, label = '', onAudio, onTran
           onAudio?.(resamplePcm16(at24, OPENAI_RATE, SYSTEM_RATE)); // -> 16kHz for the rest of the system
         }
         break;
+      case 'session.output_transcript.delta':
+        if (msg.delta) { caption += msg.delta; onCaption?.(caption, false); } // live partial line
+        break;
       case 'session.output_transcript.done':
+        onCaption?.(caption, true); // finalize the line
+        caption = '';
+        onSegmentDone?.();
+        break;
       case 'session.input_transcript.done':
-        onTranscriptDone?.();
+        onSegmentDone?.();
         break;
       case 'session.closed':
         log.tts(label, 'OpenAI realtime socket closed by server');

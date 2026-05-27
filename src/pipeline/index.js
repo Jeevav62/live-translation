@@ -155,6 +155,8 @@ class TranslationPipeline {
     recordTtsChars(this.metricKey, text.length);
     this.awaitingAudio = { spokeAt: Date.now(), ...timing };
     log.tts(this.scope, `speaking: "${text}"`);
+    // Live caption: the target-language line this listener-group is about to hear.
+    sendControlToLang(this.room, this.targetLang, { type: 'caption', text, final: true });
     this.tts.sendText(text);
   }
 
@@ -243,7 +245,8 @@ class OpenAIRealtimePipeline {
       targetLang: this.targetLang,
       label: this.scope,
       onAudio: (pcm) => this.onAudio(pcm),
-      onTranscriptDone: () => this.onTranscriptDone(),
+      onCaption: (text, final) => sendControlToLang(this.room, this.targetLang, { type: 'caption', text, final }),
+      onSegmentDone: () => this.onTranscriptDone(),
       onError: (e) => this.handleError(e),
     });
     log.pipe(this.scope, `STARTED gpt-realtime-translate -> ${langName(this.targetLang)}`);

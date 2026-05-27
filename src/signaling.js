@@ -153,6 +153,7 @@ function doJoin(ws, msg) {
     room: room.id,
     speakerLang: room.speakerLang,
     live: room.live,
+    provider: room.provider,
   });
   if (role === 'listener') {
     sendControl(ws, { type: 'audio-format', sampleRate: LISTENER_SAMPLE_RATE });
@@ -250,6 +251,9 @@ function notifyRoomState(room) {
     type: 'speaker-status',
     live: room.live,
     speakerLang: room.speakerLang,
+    provider: room.provider,
   });
-  broadcastControl(room, { type: 'listener-count', count: room.listeners.size });
+  const byLang = {};
+  for (const [lang, set] of room.listenersByLang()) byLang[lang] = set.size;
+  broadcastControl(room, { type: 'listener-count', count: room.listeners.size, byLang });
 }
