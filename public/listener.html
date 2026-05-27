@@ -4,9 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Listener — Live Translation</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎧</text></svg>" />
     <link rel="stylesheet" href="app.css" />
   </head>
   <body>
+    <a class="backlink" href="index.html">← Rooms</a>
     <div class="brand">
       <div class="logo">🎧 Listener</div>
       <div class="tag">Room <strong id="roomtag">—</strong></div>
@@ -14,20 +16,32 @@
 
     <div class="wrap">
       <div class="card">
+        <div class="topline">
+          <h2>Listening</h2>
+          <span class="pill idle" id="badge"><span class="d"></span><span id="badgetxt">Idle</span></span>
+        </div>
+
         <label for="lang">I want to hear in</label>
         <select id="lang">
           <option value="hi">Hindi</option>
           <option value="en">English</option>
         </select>
         <button class="btn-listener mt" id="join">Listen</button>
+        <div class="waiting" id="resume">↻ You were listening before the refresh — tap <strong>&nbsp;Resume listening</strong>.</div>
+
+        <div class="waiting" id="waiting"><span class="spin"></span> Waiting for the speaker to go live…</div>
+
+        <div class="metric" id="latbox">
+          <div class="metric-big" id="latency">—</div>
+          <div class="metric-sub" id="latsub">Tap Listen to start</div>
+        </div>
 
         <div class="status">
           <div class="row"><span>Connection</span><strong><span class="dot" id="dot"></span><span id="conn">idle</span></strong></div>
-          <div class="row"><span>Speaker</span><strong id="speaker">—</strong></div>
-          <div class="row"><span>Latency</span><strong id="latency">—</strong></div>
+          <div class="row"><span>Speaker</span><strong><span id="speaker">—</span><span class="eq" id="eq"><i></i><i></i><i></i></span></strong></div>
         </div>
         <p class="err" id="error"></p>
-        <p class="hint">You can change the language above at any time — no need to rejoin.</p>
+        <p class="hint">You can change the language any time — no need to rejoin.</p>
       </div>
     </div>
 

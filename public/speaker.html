@@ -4,9 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Speaker — Live Translation</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎤</text></svg>" />
     <link rel="stylesheet" href="app.css" />
   </head>
   <body>
+    <a class="backlink" href="index.html">← Rooms</a>
     <div class="brand">
       <div class="logo">🎤 Speaker</div>
       <div class="tag">Room <strong id="roomtag">—</strong></div>
@@ -14,25 +16,39 @@
 
     <div class="wrap">
       <div class="card">
+        <div class="topline">
+          <h2>Broadcast</h2>
+          <span class="pill idle" id="badge"><span class="d"></span><span id="badgetxt">Off air</span></span>
+        </div>
+
         <label for="lang">I will speak in</label>
         <select id="lang">
           <option value="hi">Hindi</option>
           <option value="en">English</option>
         </select>
         <button class="btn-speaker mt" id="go">Go Live</button>
+        <div class="waiting" id="resume">↻ You were live before the refresh — tap <strong>&nbsp;Resume broadcast</strong>.</div>
+
+        <label>Mic level</label>
+        <div class="meter" id="meter">
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        </div>
 
         <div class="status">
           <div class="row"><span>Connection</span><strong><span class="dot" id="dot"></span><span id="conn">idle</span></strong></div>
-          <div class="row"><span>Listeners</span><strong id="count">0</strong></div>
+          <div class="row"><span>Listeners</span><strong>🎧 <span id="count">0</span></strong></div>
         </div>
         <p class="err" id="error"></p>
       </div>
 
       <div class="card qr-box">
         <h2>Audience joins by scanning this</h2>
-        <img id="qr" alt="Room QR code" />
-        <div class="roomcode">Room <span id="roomcode">—</span></div>
-        <button class="btn-ghost mt" id="copy">Copy join link</button>
+        <div class="qr-frame"><img id="qr" alt="Room QR code" /></div>
+        <div class="roomcode"><span class="lbl">Room code</span><span id="roomcode">—</span></div>
+        <button class="btn-ghost mt" id="copy">📋 Copy join link</button>
         <p class="hint">They scan, then pick their own language to hear.</p>
       </div>
     </div>

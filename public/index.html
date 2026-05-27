@@ -4,54 +4,87 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Live Translation — Rooms</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗣️</text></svg>" />
     <link rel="stylesheet" href="app.css" />
     <style>
-      .room { display: flex; gap: 14px; align-items: center; }
-      .room .qr { width: 72px; height: 72px; border-radius: 8px; border: 1px solid var(--line); image-rendering: pixelated; flex-shrink: 0; cursor: pointer; background:#fff; }
-      .room .meta { flex: 1; min-width: 0; }
-      .room .nm { font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
-      .room .nm .edit { cursor: pointer; color: var(--muted); font-size: 0.9rem; background:none;border:0;width:auto;padding:2px; }
-      .room .id { color: var(--muted); font-size: 0.82rem; font-family: ui-monospace, monospace; }
-      .room .st { font-size: 0.85rem; margin-top: 4px; }
-      .room .acts { display: flex; gap: 8px; margin-top: 10px; }
-      .room .acts button { width: auto; padding: 8px 12px; font-size: 0.82rem; font-weight: 600; }
-      .empty { color: var(--muted); text-align: center; padding: 18px 0; font-size: 0.9rem; }
-      .live-pill { color: #16a34a; font-weight: 700; }
-      .idle-pill { color: var(--muted); }
+      /* ---- live stats strip ---- */
+      .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0 0 18px; }
+      .stat { background: rgba(255,255,255,0.05); border: 1px solid rgba(148,163,184,0.18); border-radius: 14px; padding: 13px 8px; text-align: center; color: #eaf0fb; backdrop-filter: blur(6px); }
+      .stat b { display: block; font-size: 1.5rem; font-weight: 800; line-height: 1.1; }
+      .stat b.green { color: #34d399; }
+      .stat span { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: #8da2c0; }
+
+      /* ---- create card ---- */
+      .create h2 { display: flex; align-items: center; gap: 8px; }
+
+      /* ---- room cards ---- */
+      .rooms-head { display: flex; align-items: baseline; justify-content: space-between; color: #cdd9ee; margin: 4px 2px 12px; }
+      .rooms-head .t { font-weight: 750; font-size: 0.95rem; letter-spacing: 0.02em; }
+      .rooms-head .c { font-size: 0.8rem; color: #8da2c0; }
+
+      .rm { padding: 16px; }
+      .rm.is-live { box-shadow: inset 4px 0 0 0 var(--listener), var(--shadow); }
+      .rm-top { display: flex; gap: 14px; }
+      .rm-qr { width: 66px; height: 66px; border-radius: 11px; border: 1px solid var(--line); cursor: pointer; image-rendering: pixelated; flex-shrink: 0; background: #fff; transition: transform 0.1s; }
+      .rm-qr:hover { transform: scale(1.04); }
+      .rm-info { flex: 1; min-width: 0; }
+      .rm-name { font-weight: 750; font-size: 1.1rem; display: flex; align-items: center; gap: 7px; }
+      .rm-name span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .rm-edit { background: none; border: 0; width: auto; padding: 2px; cursor: pointer; font-size: 0.82rem; box-shadow: none; opacity: 0.6; }
+      .rm-edit:hover { opacity: 1; filter: none; }
+      .rm-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; align-items: center; }
+      .chip { font-size: 0.76rem; padding: 4px 10px; border-radius: 999px; background: #eef2f7; color: var(--muted-ink); font-weight: 650; }
+      .chip.code { font-family: ui-monospace, "SF Mono", monospace; cursor: pointer; letter-spacing: 1px; }
+      .chip.code:hover { background: #e3e9f1; }
+      .badge { font-size: 0.72rem; padding: 4px 10px; border-radius: 999px; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; }
+      .badge.live { background: #e7f8ef; color: #0f9d58; }
+      .badge.idle { background: #eef2f7; color: var(--muted-ink); }
+      .badge .d { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+      .badge.live .d { animation: pulse-dot 1.6s infinite; }
+      .rm-acts { display: flex; gap: 8px; margin-top: 14px; }
+      .rm-acts button { width: auto; flex: 1; padding: 10px 12px; font-size: 0.82rem; }
+      .rm-acts .btn-ghost.danger { color: var(--danger); flex: 0 0 auto; }
+
+      .empty { text-align: center; padding: 26px 10px; }
+      .empty .ic { font-size: 2.4rem; }
+      .empty p { color: var(--muted-ink); margin: 8px 0 0; font-size: 0.92rem; }
     </style>
   </head>
   <body>
     <div class="brand">
       <div class="logo">🗣️ Live Translation</div>
-      <div class="tag">Create a room, show its QR, let people scan to join</div>
+      <div class="tag">Real-time multilingual audio for presentation rooms</div>
     </div>
 
     <div class="wrap">
-      <div class="card">
-        <h2>Create a room</h2>
+      <div class="stats">
+        <div class="stat"><b id="s-rooms">0</b><span>Rooms</span></div>
+        <div class="stat"><b id="s-live" class="green">0</b><span>Live now</span></div>
+        <div class="stat"><b id="s-listeners">0</b><span>Listening</span></div>
+      </div>
+
+      <div class="card create">
+        <h2>➕ Create a room</h2>
         <p class="desc">Each room gets a unique code + QR. Everyone scans the same code, then picks Speaker or Listener.</p>
         <div class="join-row">
-          <input id="name" placeholder="Room name (optional)" autocomplete="off" />
+          <input id="name" placeholder="Room name (e.g. Keynote Hall)" autocomplete="off" />
           <button class="btn-speaker" id="create">Create</button>
         </div>
         <p class="err" id="error"></p>
       </div>
 
-      <div class="card">
-        <h2>Rooms</h2>
-        <div id="rooms"><p class="empty">Loading…</p></div>
+      <div class="rooms-head">
+        <span class="t">YOUR ROOMS</span>
+        <span class="c" id="roomcount"></span>
       </div>
+      <div id="rooms"><div class="card"><div class="empty"><div class="ic">📭</div><p>Loading…</p></div></div></div>
     </div>
 
     <script>
       const origin = location.origin;
       const joinLink = (id) => `${origin}/join.html?room=${encodeURIComponent(id)}`;
-      const els = {
-        name: document.getElementById('name'),
-        create: document.getElementById('create'),
-        rooms: document.getElementById('rooms'),
-        error: document.getElementById('error'),
-      };
+      const $ = (id) => document.getElementById(id);
+      const els = { name: $('name'), create: $('create'), rooms: $('rooms'), error: $('error') };
 
       async function api(method, path, body) {
         const res = await fetch(path, {
@@ -63,45 +96,56 @@
         return res.status === 204 ? null : res.json();
       }
 
-      function render(rooms) {
-        if (!rooms.length) {
-          els.rooms.innerHTML = '<p class="empty">No rooms yet — create one above.</p>';
-          return;
-        }
-        rooms.sort((a, b) => b.createdAt - a.createdAt);
-        els.rooms.innerHTML = '';
-        for (const r of rooms) {
-          const status = r.live
-            ? `<span class="live-pill">● live</span> · ${r.listeners} listener${r.listeners === 1 ? '' : 's'}`
-            : `<span class="idle-pill">○ idle</span> · ${r.listeners} listener${r.listeners === 1 ? '' : 's'}`;
-          const card = document.createElement('div');
-          card.className = 'card';
-          card.style.margin = '0 0 12px';
-          card.innerHTML = `
-            <div class="room">
-              <img class="qr" src="/api/qr?data=${encodeURIComponent(joinLink(r.id))}" title="Open big QR screen" data-host="${r.id}" />
-              <div class="meta">
-                <div class="nm"><span>${escapeHtml(r.name)}</span><button class="edit" data-edit="${r.id}" title="Rename">✏️</button></div>
-                <div class="id">${r.id}</div>
-                <div class="st">${status}</div>
-                <div class="acts">
-                  <button class="btn-listener" data-copy="${r.id}">Copy link</button>
-                  <button class="btn-ghost" data-host="${r.id}">QR screen</button>
-                  <button class="btn-stop" data-del="${r.id}">Delete</button>
-                </div>
-              </div>
-            </div>`;
-          els.rooms.appendChild(card);
-        }
-      }
-
       function escapeHtml(s) {
         return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
       }
 
+      function render(rooms) {
+        // stats
+        $('s-rooms').textContent = rooms.length;
+        $('s-live').textContent = rooms.filter((r) => r.live).length;
+        $('s-listeners').textContent = rooms.reduce((n, r) => n + r.listeners, 0);
+        $('roomcount').textContent = rooms.length ? `${rooms.length} total` : '';
+
+        if (!rooms.length) {
+          els.rooms.innerHTML = '<div class="card"><div class="empty"><div class="ic">📭</div><p>No rooms yet — create your first one above.</p></div></div>';
+          return;
+        }
+        rooms.sort((a, b) => b.createdAt - a.createdAt);
+        els.rooms.innerHTML = rooms.map((r) => {
+          const badge = r.live
+            ? '<span class="badge live"><span class="d"></span>LIVE</span>'
+            : '<span class="badge idle"><span class="d"></span>Idle</span>';
+          return `
+            <div class="card rm ${r.live ? 'is-live' : ''}">
+              <div class="rm-top">
+                <img class="rm-qr" src="/api/qr?data=${encodeURIComponent(joinLink(r.id))}" title="Open QR screen" data-host="${r.id}" />
+                <div class="rm-info">
+                  <div class="rm-name"><span>${escapeHtml(r.name)}</span><button class="rm-edit" data-edit="${r.id}" title="Rename">✏️</button></div>
+                  <div class="rm-chips">
+                    <span class="chip code" data-copycode="${r.id}" title="Copy code">${r.id}</span>
+                    ${badge}
+                    <span class="chip">🎧 ${r.listeners}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="rm-acts">
+                <button class="btn-speaker" data-host="${r.id}">QR screen</button>
+                <button class="btn-ghost" data-copy="${r.id}">Copy link</button>
+                <button class="btn-ghost danger" data-del="${r.id}" title="Delete room">🗑</button>
+              </div>
+            </div>`;
+        }).join('');
+      }
+
+      let lastSig = '';
       async function refresh() {
         try {
-          render(await api('GET', '/api/rooms'));
+          const rooms = await api('GET', '/api/rooms');
+          const sig = JSON.stringify(rooms);
+          if (sig === lastSig) return; // nothing changed — skip re-render (avoids QR flicker)
+          lastSig = sig;
+          render(rooms);
         } catch (e) {
           els.error.textContent = 'Could not load rooms: ' + e.message;
         }
@@ -112,8 +156,6 @@
         try {
           const room = await api('POST', '/api/rooms', { name: els.name.value });
           els.name.value = '';
-          await refresh();
-          // Jump straight to the new room's QR screen so the host can show it.
           location.href = `host.html?room=${encodeURIComponent(room.id)}`;
         } catch (e) {
           els.error.textContent = 'Create failed: ' + e.message;
@@ -122,24 +164,27 @@
       els.name.addEventListener('keydown', (e) => { if (e.key === 'Enter') els.create.click(); });
 
       els.rooms.addEventListener('click', async (e) => {
-        const t = e.target.closest('[data-host],[data-copy],[data-del],[data-edit]');
+        const t = e.target.closest('[data-host],[data-copy],[data-del],[data-edit],[data-copycode]');
         if (!t) return;
+        const flash = (msg, restore) => { const o = t.textContent; t.textContent = msg; setTimeout(() => (t.textContent = restore ?? o), 1100); };
         if (t.dataset.host) {
           location.href = `host.html?room=${encodeURIComponent(t.dataset.host)}`;
         } else if (t.dataset.copy) {
-          try { await navigator.clipboard.writeText(joinLink(t.dataset.copy)); t.textContent = 'Copied ✓'; setTimeout(() => (t.textContent = 'Copy link'), 1200); } catch {}
+          try { await navigator.clipboard.writeText(joinLink(t.dataset.copy)); flash('Copied ✓'); } catch {}
+        } else if (t.dataset.copycode) {
+          try { await navigator.clipboard.writeText(t.dataset.copycode); flash('copied!'); } catch {}
         } else if (t.dataset.edit) {
           const name = prompt('Rename room', '');
-          if (name && name.trim()) { await api('PATCH', `/api/rooms/${t.dataset.edit}`, { name: name.trim() }); refresh(); }
+          if (name && name.trim()) { await api('PATCH', `/api/rooms/${t.dataset.edit}`, { name: name.trim() }); lastSig = ''; refresh(); }
         } else if (t.dataset.del) {
           if (confirm('Delete this room? Anyone connected will be disconnected.')) {
-            await api('DELETE', `/api/rooms/${t.dataset.del}`); refresh();
+            await api('DELETE', `/api/rooms/${t.dataset.del}`); lastSig = ''; refresh();
           }
         }
       });
 
       refresh();
-      setInterval(refresh, 4000); // keep live status + listener counts fresh
+      setInterval(refresh, 4000);
     </script>
   </body>
 </html>
