@@ -26,6 +26,16 @@
           <option value="hi">Hindi</option>
           <option value="en">English</option>
         </select>
+
+        <div id="enginewrap" style="display:none">
+          <label for="engine">Translation engine</label>
+          <select id="engine">
+            <option value="sarvam">Sarvam — STT → translate → TTS (default)</option>
+            <option value="openai">GPT Realtime — streaming speech-to-speech</option>
+          </select>
+          <p class="hint" id="enginehint">Sarvam is the default. GPT Realtime streams translation as you speak (lower lag) but costs more.</p>
+        </div>
+
         <button class="btn-speaker mt" id="go">Go Live</button>
         <div class="waiting" id="resume">↻ You were live before the refresh — tap <strong>&nbsp;Resume broadcast</strong>.</div>
 

@@ -16,6 +16,7 @@ export function createSTT({ apiKey, mode = 'translate', sampleRate = 16000, labe
     sample_rate: String(sampleRate),
     input_audio_codec: 'pcm_s16le',
     vad_signals: 'true',
+    flush_signal: 'true', // lets us force finalization on a micro-pause (see pipeline)
   });
   const ws = new WebSocket(`${STT_URL}?${params}`, { headers: { 'Api-Subscription-Key': apiKey } });
 

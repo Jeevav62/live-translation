@@ -48,6 +48,19 @@
       .empty { text-align: center; padding: 26px 10px; }
       .empty .ic { font-size: 2.4rem; }
       .empty p { color: var(--muted-ink); margin: 8px 0 0; font-size: 0.92rem; }
+      .spend { color: #cdd9ee; font-size: 0.82rem; text-align: center; margin: -6px 2px 16px; line-height: 1.5; }
+      .spend b { color: #fff; }
+      .spend .live { color: #8da2c0; }
+      /* cost modal */
+      .modal { position: fixed; inset: 0; background: rgba(4,8,18,0.66); display: none; align-items: center; justify-content: center; padding: 18px; z-index: 50; backdrop-filter: blur(3px); }
+      .modal.show { display: flex; }
+      .modal-card { background: var(--card); border-radius: var(--radius); padding: 22px; max-width: 380px; width: 100%; position: relative; box-shadow: var(--shadow); }
+      .modal-x { position: absolute; top: 12px; right: 12px; width: auto; padding: 4px 9px; background: #f1f5f9; color: var(--ink-soft); box-shadow: none; }
+      .modal-card h2 { margin: 0 0 2px; }
+      .cost-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 0.92rem; }
+      .cost-row:last-child { border-bottom: 0; }
+      .cost-grp { margin-top: 14px; font-weight: 700; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-ink); }
+      .cost-tot { font-weight: 800; }
     </style>
   </head>
   <body>
@@ -62,6 +75,7 @@
         <div class="stat"><b id="s-live" class="green">0</b><span>Live now</span></div>
         <div class="stat"><b id="s-listeners">0</b><span>Listening</span></div>
       </div>
+      <div class="spend" id="spend"></div>
 
       <div class="card create">
         <h2>➕ Create a room</h2>
@@ -78,6 +92,13 @@
         <span class="c" id="roomcount"></span>
       </div>
       <div id="rooms"><div class="card"><div class="empty"><div class="ic">📭</div><p>Loading…</p></div></div></div>
+    </div>
+
+    <div class="modal" id="modal">
+      <div class="modal-card">
+        <button class="modal-x" id="modalclose">✕</button>
+        <div id="modalbody"></div>
+      </div>
     </div>
 
     <script>
@@ -132,6 +153,7 @@
               <div class="rm-acts">
                 <button class="btn-speaker" data-host="${r.id}">QR screen</button>
                 <button class="btn-ghost" data-copy="${r.id}">Copy link</button>
+                <button class="btn-ghost" data-cost="${r.id}" title="Cost spent">💰</button>
                 <button class="btn-ghost danger" data-del="${r.id}" title="Delete room">🗑</button>
               </div>
             </div>`;
@@ -164,8 +186,9 @@
       els.name.addEventListener('keydown', (e) => { if (e.key === 'Enter') els.create.click(); });
 
       els.rooms.addEventListener('click', async (e) => {
-        const t = e.target.closest('[data-host],[data-copy],[data-del],[data-edit],[data-copycode]');
+        const t = e.target.closest('[data-host],[data-copy],[data-del],[data-edit],[data-copycode],[data-cost]');
         if (!t) return;
+        if (t.dataset.cost) return showRoomCost(t.dataset.cost);
         const flash = (msg, restore) => { const o = t.textContent; t.textContent = msg; setTimeout(() => (t.textContent = restore ?? o), 1100); };
         if (t.dataset.host) {
           location.href = `host.html?room=${encodeURIComponent(t.dataset.host)}`;
@@ -183,8 +206,48 @@
         }
       });
 
+      // ── cost: project spend line + per-room modal ──
+      const fmtINR = (n) => '₹' + (Math.round(n * 100) / 100).toLocaleString('en-IN');
+      const fmtUSD = (n) => '$' + (Math.round(n * 1e4) / 1e4);
+
+      async function updateSpend() {
+        try {
+          const c = await api('GET', '/cost');
+          const lt = c.lifetime || { sarvamINR: 0, openaiUSD: 0 };
+          const liveINR = c.total?.cost?.total || 0;
+          const liveUSD = c.openai?.total?.cost?.total || 0;
+          document.getElementById('spend').innerHTML =
+            `Project spend (lifetime): <b>${fmtINR(lt.sarvamINR)}</b> Sarvam · <b>${fmtUSD(lt.openaiUSD)}</b> GPT` +
+            `<br /><span class="live">this session: ${fmtINR(liveINR)} · ${fmtUSD(liveUSD)}</span>`;
+        } catch {}
+      }
+
+      const modal = document.getElementById('modal');
+      document.getElementById('modalclose').addEventListener('click', () => modal.classList.remove('show'));
+      modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('show'); });
+
+      async function showRoomCost(id) {
+        try {
+          const c = await api('GET', `/api/rooms/${id}/cost`);
+          const s = c.sarvam.cost, o = c.openai.cost;
+          document.getElementById('modalbody').innerHTML = `
+            <h2>💰 ${escapeHtml(c.name)}</h2>
+            <p class="desc">${id}${c.provider ? ' · engine: ' + c.provider : ''}</p>
+            <div class="cost-grp">Sarvam (INR)</div>
+            <div class="cost-row"><span>STT · ${c.sarvam.usage.sttMinutes} min</span><span>${fmtINR(s.stt)}</span></div>
+            <div class="cost-row"><span>TTS · ${c.sarvam.usage.ttsChars} chars</span><span>${fmtINR(s.tts)}</span></div>
+            <div class="cost-row"><span>Translate · ${c.sarvam.usage.translateChars} chars</span><span>${fmtINR(s.translate)}</span></div>
+            <div class="cost-row cost-tot"><span>Sarvam total</span><span>${fmtINR(s.total)}</span></div>
+            <div class="cost-grp">GPT Realtime (USD)</div>
+            <div class="cost-row"><span>Audio · ${o.minutes} min</span><span>${fmtUSD(o.total)}</span></div>
+            <p class="hint">Sarvam usage is exact at published rates; GPT is audio-minutes × $${'' + (c.openai.cost.total && o.minutes ? (o.total / o.minutes).toFixed(4) : '0.034')}/min. Confirm rates on each dashboard.</p>`;
+          modal.classList.add('show');
+        } catch (e) { alert('Could not load cost: ' + e.message); }
+      }
+
       refresh();
-      setInterval(refresh, 4000);
+      updateSpend();
+      setInterval(() => { refresh(); updateSpend(); }, 4000);
     </script>
   </body>
 </html>

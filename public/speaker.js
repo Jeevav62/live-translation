@@ -18,7 +18,14 @@ const els = {
   badge: document.getElementById('badge'),
   badgetxt: document.getElementById('badgetxt'),
   resume: document.getElementById('resume'),
+  engine: document.getElementById('engine'),
+  enginewrap: document.getElementById('enginewrap'),
 };
+
+// Show the engine picker only if the server has an OpenAI key configured.
+fetch('/api/config').then((r) => r.json()).then((cfg) => {
+  if (cfg?.providers?.openai) els.enginewrap.style.display = 'block';
+}).catch(() => {});
 
 // Remember across a page refresh that we were broadcasting this room, so we can
 // offer a one-tap resume (the mic needs a user gesture, browser rule).
@@ -104,6 +111,7 @@ async function start() {
   els.go.textContent = 'Stop';
   els.go.classList.add('live');
   els.lang.disabled = true;
+  els.engine.disabled = true;
   connect();
 }
 
@@ -114,7 +122,7 @@ function connect() {
   ws.binaryType = 'arraybuffer';
 
   ws.onopen = () => {
-    ws.send(JSON.stringify({ type: 'join', room: roomId, role: 'speaker', lang: els.lang.value, clientId }));
+    ws.send(JSON.stringify({ type: 'join', room: roomId, role: 'speaker', lang: els.lang.value, provider: els.engine.value, clientId }));
   };
 
   ws.onmessage = (ev) => {
@@ -185,6 +193,7 @@ function stop() {
   els.go.textContent = 'Go Live';
   els.go.classList.remove('live');
   els.lang.disabled = false;
+  els.engine.disabled = false;
   setConn('idle', false);
   setBadge(false);
   els.count.textContent = '0';
