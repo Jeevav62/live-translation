@@ -7,24 +7,25 @@
     <link rel="stylesheet" href="app.css" />
   </head>
   <body>
+    <a class="backlink" href="index.html">← Rooms</a>
     <div class="brand">
       <div class="logo">🗣️ Live Translation</div>
       <div class="tag">Point your phone camera at the code to join</div>
     </div>
 
     <div class="wrap">
-      <div class="card qr-box">
+      <div class="card qr-box big">
         <h2>Scan to join this room</h2>
         <p class="desc">Everyone scans the same code — then chooses Speaker or Listener.</p>
-        <img id="qr" alt="Room QR code" />
-        <div class="roomcode big">Room <span id="roomcode">—</span></div>
-        <button class="btn-ghost mt" id="copy">Copy join link</button>
-        <p class="hint">No QR scanner? Open <span id="origin"></span> and enter the room code above.</p>
+        <div class="qr-frame"><img id="qr" alt="Room QR code" /></div>
+        <div class="roomcode huge"><span class="lbl">Room code</span><span id="roomcode">—</span></div>
+        <button class="btn-ghost mt" id="copy">📋 Copy join link</button>
+        <p class="hint">No QR scanner? Open <strong id="origin"></strong> and enter the room code.</p>
       </div>
 
       <div class="card">
-        <h2>Joining from this device?</h2>
-        <p class="desc">If you're presenting from this laptop, jump straight in.</p>
+        <h2>Presenting from this device?</h2>
+        <p class="desc">If you're the speaker on this laptop, jump straight in.</p>
         <a class="btn btn-speaker" id="self">Choose my role →</a>
       </div>
     </div>
@@ -41,13 +42,15 @@
 
       document.getElementById('copy').addEventListener('click', async (e) => {
         const btn = e.currentTarget;
+        // Use the native share sheet on mobile, fall back to clipboard.
+        if (navigator.share) {
+          try { await navigator.share({ title: 'Live Translation', text: `Join room ${roomId}`, url: joinUrl }); return; } catch {}
+        }
         try {
           await navigator.clipboard.writeText(joinUrl);
           btn.textContent = 'Copied ✓';
-          setTimeout(() => (btn.textContent = 'Copy join link'), 1500);
-        } catch {
-          btn.textContent = joinUrl;
-        }
+          setTimeout(() => (btn.textContent = '📋 Copy join link'), 1500);
+        } catch { btn.textContent = joinUrl; }
       });
     </script>
   </body>

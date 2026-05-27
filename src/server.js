@@ -6,6 +6,7 @@ import express from 'express';
 import { WebSocketServer } from 'ws';
 import { handleConnection, closeRoomSockets } from './signaling.js';
 import { createRoom, renameRoom, deleteRoom, listRooms, getRoom } from './rooms.js';
+import { keyCount } from './sarvamKeys.js';
 import { log } from './log.js';
 import { snapshot } from './metrics.js';
 import { costSnapshot } from './cost.js';
@@ -87,8 +88,8 @@ const interval = setInterval(() => {
 }, HEARTBEAT_MS);
 wss.on('close', () => clearInterval(interval));
 
-const keyState = process.env.SARVAM_API_KEY && process.env.SARVAM_API_KEY !== 'PASTE_YOUR_KEY_HERE'
-  ? 'loaded'
+const keyState = keyCount() > 0
+  ? `${keyCount()} key${keyCount() === 1 ? '' : 's'} loaded${keyCount() > 1 ? ' (auto-fallback enabled)' : ''}`
   : 'MISSING (translation disabled — relay still works)';
 
 server.listen(PORT, () => {

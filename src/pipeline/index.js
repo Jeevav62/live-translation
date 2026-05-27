@@ -9,6 +9,9 @@ import { sendToLang, sendControlToLang } from '../relay.js';
 import { log } from '../log.js';
 import { recordUtterance } from '../metrics.js';
 import { recordSttAudio, recordTtsChars, recordTranslateChars, costLine } from '../cost.js';
+import { currentKey, hasKeys, isKeyError, rotate } from '../sarvamKeys.js';
+
+const MAX_KEY_RESTARTS = 4; // cap auto-restarts when a key fails, to avoid loops
 
 export const LISTENER_SAMPLE_RATE = 16000; // PCM16 rate listeners play (relay + TTS)
 
@@ -37,23 +40,42 @@ export function routePath(speakerLang, listenerLang) {
 }
 
 class TranslationPipeline {
-  constructor(room, speakerLang, targetLang, apiKey) {
+  constructor(room, speakerLang, targetLang) {
     this.room = room;
     this.speakerLang = speakerLang;
     this.targetLang = targetLang;
-    this.apiKey = apiKey;
+    this.apiKey = null; // resolved from the key pool at start()
     this.path = routePath(speakerLang, targetLang);
     this.scope = `${room.id} ${speakerLang}->${targetLang}`;
     this.metricKey = `${room.id}|${speakerLang}->${targetLang}`;
     this.stt = null;
     this.tts = null;
     this.utterances = 0;
+    this.restarts = 0; // key-failure restarts so far
+    this.stopped = false;
     this.lastVoiceAt = null; // timestamp of the most recent speech frame fed (end-of-speech marker)
     this.awaitingAudio = null; // timing context while waiting on the TTS first chunk
   }
 
+  // A failed Sarvam key (auth/quota/rate) rotates to the next key and rebuilds
+  // the STT/TTS sockets; other errors are just logged.
+  handleError(e) {
+    log.error(`[pipe ${this.scope}] ${e.message}`);
+    if (this.stopped || !isKeyError(e)) return;
+    if (this.restarts >= MAX_KEY_RESTARTS) {
+      log.warn(`[pipe ${this.scope}] key restarts exhausted — giving up`);
+      return;
+    }
+    if (!rotate(this.apiKey, e.message)) return; // no other key to try
+    this.restarts += 1;
+    this.stt?.close();
+    this.tts?.close();
+    this.start();
+  }
+
   start() {
-    const onError = (e) => log.error(`[pipe ${this.scope}] ${e.message}`);
+    this.apiKey = currentKey();
+    const onError = (e) => this.handleError(e);
 
     this.tts = createTTS({
       apiKey: this.apiKey,
@@ -156,6 +178,7 @@ class TranslationPipeline {
   }
 
   stop() {
+    this.stopped = true;
     this.stt?.close();
     this.tts?.close();
     log.pipe(this.scope, `STOPPED (handled ${this.utterances} utterance${this.utterances === 1 ? '' : 's'})`);
@@ -163,10 +186,6 @@ class TranslationPipeline {
   }
 }
 
-function apiKey() {
-  const k = process.env.SARVAM_API_KEY;
-  return k && k !== 'PASTE_YOUR_KEY_HERE' ? k : null;
-}
 
 // Reconcile a room's live pipelines with current listener languages.
 // At most ONE pipeline per target language exists at any time; listeners of an
@@ -180,14 +199,13 @@ export function syncPipelines(room) {
   let changed = false;
 
   // Create missing pipelines.
-  const key = apiKey();
   for (const lang of desired) {
     if (room.pipelines.has(lang)) continue; // language already covered — reuse it
-    if (!key) {
+    if (!hasKeys()) {
       log.warn(`[${room.id}] SARVAM_API_KEY missing — cannot translate to ${langName(lang)}`);
       continue;
     }
-    const p = new TranslationPipeline(room, room.speakerLang, lang, key);
+    const p = new TranslationPipeline(room, room.speakerLang, lang);
     p.start();
     room.pipelines.set(lang, p);
     changed = true;

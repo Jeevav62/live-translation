@@ -106,10 +106,16 @@ export function getRoom(id) {
   return roomStore.get(id);
 }
 
-// Returns { ok, error } — rejects a second speaker.
+// Returns { ok, error } — rejects a second speaker, but lets the SAME browser
+// (clientId) take over its own stale socket so a speaker refresh/reconnect is
+// seamless instead of being rejected as "room already has a speaker".
 export function joinAsSpeaker(room, ws, lang) {
   if (room.speaker && room.speaker !== ws && room.speaker.readyState === 1) {
-    return { ok: false, error: 'Room already has a speaker' };
+    if (ws.clientId && room.speaker.clientId === ws.clientId) {
+      try { room.speaker.close(); } catch {} // drop the old tab/socket of the same speaker
+    } else {
+      return { ok: false, error: 'Room already has a speaker' };
+    }
   }
   ws.meta = { ...ws.meta, role: 'speaker', lang, roomId: room.id };
   room.speaker = ws;
