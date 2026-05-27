@@ -23,8 +23,14 @@ const els = {
   badge: document.getElementById('badge'),
   badgetxt: document.getElementById('badgetxt'),
   resume: document.getElementById('resume'),
+  vol: document.getElementById('vol'),
+  volout: document.getElementById('volout'),
+  capbody: document.getElementById('capbody'),
+  capeq: document.getElementById('capeq'),
 };
 els.roomtag.textContent = roomId;
+
+const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // Remember across a refresh that we were listening to this room, so we can offer
 // a one-tap resume (audio playback needs a user gesture, browser rule).
@@ -58,20 +64,55 @@ let nextTime = 0;
 let listening = false;
 let speakerLang = null;
 let speakerLive = false;
+let engine = null; // translation engine the room uses ('sarvam' | 'openai')
 let intentional = false;
 let reconnectTimer = null;
 let attempts = 0;
 let eqTimer = null;
+let gainNode = null;
+let capHistory = [];
+let capCurrent = '';
 
 els.join.addEventListener('click', () => (listening ? stop() : start()));
 
 // Switch the language you hear, mid-session, without rejoining.
 els.lang.addEventListener('change', () => {
+  resetCaptions(); // captions are language-specific
   if (!listening || !ws || ws.readyState !== WebSocket.OPEN) return;
   ws.send(JSON.stringify({ type: 'set-lang', lang: els.lang.value }));
   nextTime = 0;
   updateLatency();
 });
+
+// ---- volume ----
+els.vol.addEventListener('input', () => {
+  els.volout.textContent = els.vol.value + '%';
+  if (gainNode) gainNode.gain.value = els.vol.value / 100;
+});
+
+// ---- live captions ----
+function resetCaptions() {
+  capHistory = []; capCurrent = '';
+  els.capbody.innerHTML = '<span class="cap-empty">Captions appear here once the speaker is translating…</span>';
+}
+function renderCaptions() {
+  const lines = capCurrent ? [...capHistory, capCurrent] : [...capHistory];
+  if (!lines.length) return resetCaptions();
+  els.capbody.innerHTML = lines
+    .map((l, i) => `<div class="cap-line${capCurrent && i === lines.length - 1 ? ' cap-live' : ''}">${escapeHtml(l)}</div>`)
+    .join('');
+  els.capbody.scrollTop = els.capbody.scrollHeight;
+}
+function handleCaption(msg) {
+  if (msg.final) {
+    if (msg.text) capHistory.push(msg.text);
+    if (capHistory.length > 6) capHistory.shift();
+    capCurrent = '';
+  } else {
+    capCurrent = msg.text || '';
+  }
+  renderCaptions();
+}
 
 // ---- latency hero metric ----
 function setMetric(cls, big, sub) {
@@ -98,7 +139,9 @@ function showMeasuredLatency(last, p50, count) {
 function refreshSpeaker() {
   if (!listening) { els.speaker.textContent = '—'; els.waiting.classList.remove('show'); return; }
   if (speakerLive) {
-    els.speaker.textContent = `Live · ${LANG_NAME[speakerLang] || speakerLang || '?'}`;
+    const translated = speakerLang && els.lang.value !== speakerLang;
+    const eng = translated && engine ? ` · via ${engine === 'openai' ? 'GPT' : 'Sarvam'}` : '';
+    els.speaker.textContent = `Live · ${LANG_NAME[speakerLang] || speakerLang || '?'}${eng}`;
     els.waiting.classList.remove('show');
   } else {
     els.speaker.textContent = 'not live yet';
@@ -109,8 +152,14 @@ function refreshSpeaker() {
 // ---- playing indicator ----
 function pingEq() {
   els.eq.classList.add('on');
+  els.capeq.classList.add('on');
+  els.latbox.classList.add('pulse');
   clearTimeout(eqTimer);
-  eqTimer = setTimeout(() => els.eq.classList.remove('on'), 450);
+  eqTimer = setTimeout(() => {
+    els.eq.classList.remove('on');
+    els.capeq.classList.remove('on');
+    els.latbox.classList.remove('pulse');
+  }, 450);
 }
 
 async function start() {
@@ -120,6 +169,10 @@ async function start() {
   attempts = 0;
   audioCtx = new AudioContext();
   await audioCtx.resume();
+  gainNode = audioCtx.createGain();
+  gainNode.gain.value = els.vol.value / 100;
+  gainNode.connect(audioCtx.destination);
+  resetCaptions();
   nextTime = 0;
   listening = true;
   els.join.textContent = 'Stop';
@@ -165,6 +218,7 @@ function handleControl(msg) {
     attempts = 0;
     speakerLang = msg.speakerLang || speakerLang;
     speakerLive = !!msg.live;
+    engine = msg.provider || engine;
     updateLatency();
     refreshSpeaker();
   } else if (msg.type === 'audio-format') {
@@ -172,8 +226,11 @@ function handleControl(msg) {
   } else if (msg.type === 'speaker-status') {
     speakerLang = msg.speakerLang || speakerLang;
     speakerLive = !!msg.live;
+    engine = msg.provider || engine;
     updateLatency();
     refreshSpeaker();
+  } else if (msg.type === 'caption') {
+    handleCaption(msg);
   } else if (msg.type === 'latency') {
     showMeasuredLatency(msg.last, msg.p50, msg.count);
   } else if (msg.type === 'evicted' || msg.type === 'room-closed') {
@@ -196,7 +253,7 @@ function playFrame(arrayBuffer) {
 
   const src = audioCtx.createBufferSource();
   src.buffer = buffer;
-  src.connect(audioCtx.destination);
+  src.connect(gainNode || audioCtx.destination);
   src.start(nextTime);
   nextTime += buffer.duration;
   pingEq();
@@ -214,10 +271,14 @@ function stop() {
   setBadge(false, 'Idle');
   speakerLang = null;
   speakerLive = false;
+  engine = null;
   setMetric('', '—', 'Tap Listen to start');
   els.eq.classList.remove('on');
+  els.capeq.classList.remove('on');
+  resetCaptions();
   refreshSpeaker();
   if (ws) { ws.close(); ws = null; }
+  gainNode = null;
   if (audioCtx) { audioCtx.close(); audioCtx = null; }
 }
 

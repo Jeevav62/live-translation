@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 /* Live Translation — shared design system. Mobile-first; most of the audience
    joins on phones by scanning a QR. */
 
@@ -32,7 +34,7 @@
 html { -webkit-text-size-adjust: 100%; }
 
 body {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   margin: 0;
   min-height: 100vh;
   color: var(--ink);
@@ -204,11 +206,37 @@ a.link { color: var(--speaker); text-decoration: none; font-weight: 650; }
 .meter.active .bar { background: var(--listener); }
 
 /* ---- listener playing indicator ---- */
-.eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; margin-left: 8px; opacity: 0; transition: opacity 0.2s; }
+.eq { display: inline-flex; align-items: flex-end; gap: 3px; height: 16px; margin-left: 8px; opacity: 0; transition: opacity 0.2s; }
 .eq.on { opacity: 1; }
-.eq i { width: 3px; background: var(--listener); border-radius: 2px; height: 4px; animation: eq 0.7s ease-in-out infinite; }
+.eq i { width: 4px; background: var(--listener); border-radius: 2px; height: 4px; animation: eq 0.7s ease-in-out infinite; }
 .eq i:nth-child(2) { animation-delay: 0.15s; }
 .eq i:nth-child(3) { animation-delay: 0.3s; }
+.eq i:nth-child(4) { animation-delay: 0.45s; }
+.eq i:nth-child(5) { animation-delay: 0.2s; }
+
+/* live captions */
+.cap-head { display: flex; align-items: center; justify-content: space-between; }
+.cap-body { margin-top: 12px; max-height: 168px; overflow-y: auto; display: flex; flex-direction: column; gap: 7px; }
+.cap-line { background: #f1f5f9; border-radius: 11px; padding: 10px 13px; font-size: 1rem; line-height: 1.45; color: var(--ink); animation: fade-up 0.25s ease both; }
+.cap-line.cap-live { background: #eef2ff; color: #1e293b; }
+.cap-empty { color: var(--muted); font-size: 0.88rem; }
+
+/* volume slider */
+input[type=range] { -webkit-appearance: none; appearance: none; height: 6px; padding: 0; background: #e2e8f0; border-radius: 999px; border: 0; }
+input[type=range]:focus { box-shadow: none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--listener); cursor: pointer; box-shadow: var(--shadow-sm); }
+input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: var(--listener); cursor: pointer; }
+.vol-row { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+.vol-row .ic { font-size: 1.1rem; }
+.vol-row output { color: var(--muted-ink); font-size: 0.82rem; min-width: 38px; text-align: right; }
+
+/* hero metric pulses briefly while audio plays */
+.metric.pulse { box-shadow: 0 0 0 4px rgba(16,185,129,0.18); }
+
+/* skeleton shimmer (dashboard loading) */
+.skeleton { position: relative; overflow: hidden; background: rgba(255,255,255,0.06); border: 1px solid rgba(148,163,184,0.16); border-radius: var(--radius); height: 96px; margin: 0 0 12px; }
+.skeleton::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent); animation: shimmer 1.3s infinite; }
+@keyframes shimmer { 100% { transform: translateX(100%); } }
 
 /* ---- waiting banner ---- */
 .waiting { margin-top: 16px; padding: 13px 15px; border-radius: var(--radius-sm); background: #fff7ed; border: 1px solid #fed7aa; color: #b45309; font-size: 0.88rem; font-weight: 600; display: none; align-items: center; gap: 9px; }
@@ -220,7 +248,7 @@ a.link { color: var(--speaker); text-decoration: none; font-weight: 650; }
 @keyframes fade-down { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
 @keyframes pulse-dot { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); } 70% { box-shadow: 0 0 0 7px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
 @keyframes live-glow { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); } 50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); } }
-@keyframes eq { 0%,100% { height: 4px; } 50% { height: 12px; } }
+@keyframes eq { 0%,100% { height: 4px; } 50% { height: 16px; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {

@@ -36,6 +36,7 @@
       .chip { font-size: 0.76rem; padding: 4px 10px; border-radius: 999px; background: #eef2f7; color: var(--muted-ink); font-weight: 650; }
       .chip.code { font-family: ui-monospace, "SF Mono", monospace; cursor: pointer; letter-spacing: 1px; }
       .chip.code:hover { background: #e3e9f1; }
+      .chip.eng { background: #eef2ff; color: #4f46e5; }
       .badge { font-size: 0.72rem; padding: 4px 10px; border-radius: 999px; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; }
       .badge.live { background: #e7f8ef; color: #0f9d58; }
       .badge.idle { background: #eef2f7; color: var(--muted-ink); }
@@ -91,7 +92,7 @@
         <span class="t">YOUR ROOMS</span>
         <span class="c" id="roomcount"></span>
       </div>
-      <div id="rooms"><div class="card"><div class="empty"><div class="ic">📭</div><p>Loading…</p></div></div></div>
+      <div id="rooms"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
     </div>
 
     <div class="modal" id="modal">
@@ -132,7 +133,7 @@
           els.rooms.innerHTML = '<div class="card"><div class="empty"><div class="ic">📭</div><p>No rooms yet — create your first one above.</p></div></div>';
           return;
         }
-        rooms.sort((a, b) => b.createdAt - a.createdAt);
+        rooms.sort((a, b) => (b.live - a.live) || (b.createdAt - a.createdAt)); // live first
         els.rooms.innerHTML = rooms.map((r) => {
           const badge = r.live
             ? '<span class="badge live"><span class="d"></span>LIVE</span>'
@@ -147,6 +148,7 @@
                     <span class="chip code" data-copycode="${r.id}" title="Copy code">${r.id}</span>
                     ${badge}
                     <span class="chip">🎧 ${r.listeners}</span>
+                    ${r.live ? `<span class="chip eng">${r.provider === 'openai' ? '⚡ GPT' : 'Sarvam'}</span>` : ''}
                   </div>
                 </div>
               </div>

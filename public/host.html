@@ -19,6 +19,7 @@
         <p class="desc">Everyone scans the same code — then chooses Speaker or Listener.</p>
         <div class="qr-frame"><img id="qr" alt="Room QR code" /></div>
         <div class="roomcode huge"><span class="lbl">Room code</span><span id="roomcode">—</span></div>
+        <div class="pill idle" id="joincount" style="margin:12px auto 0"><span class="d"></span><span id="jc">0 joined</span></div>
         <button class="btn-ghost mt" id="copy">📋 Copy join link</button>
         <p class="hint">No QR scanner? Open <strong id="origin"></strong> and enter the room code.</p>
       </div>
@@ -52,6 +53,21 @@
           setTimeout(() => (btn.textContent = '📋 Copy join link'), 1500);
         } catch { btn.textContent = joinUrl; }
       });
+
+      // Live join counter — the presenter watches the audience connect.
+      const jc = document.getElementById('jc');
+      const jcPill = document.getElementById('joincount');
+      async function pollCount() {
+        try {
+          const rooms = await (await fetch('/api/rooms')).json();
+          const r = rooms.find((x) => x.id === roomId);
+          if (!r) return;
+          jc.textContent = `${r.listeners} joined${r.live ? ' · 🔴 live' : ''}`;
+          jcPill.className = 'pill ' + (r.listeners > 0 || r.live ? 'on' : 'idle');
+        } catch {}
+      }
+      pollCount();
+      setInterval(pollCount, 3000);
     </script>
   </body>
 </html>

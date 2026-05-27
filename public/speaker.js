@@ -20,7 +20,23 @@ const els = {
   resume: document.getElementById('resume'),
   engine: document.getElementById('engine'),
   enginewrap: document.getElementById('enginewrap'),
+  timer: document.getElementById('timer'),
+  bylang: document.getElementById('bylang'),
+  bylangrow: document.getElementById('bylangrow'),
 };
+
+const LANG_NAME = { hi: 'Hindi', en: 'English' };
+let timerInt = null;
+let liveSince = 0;
+function startTimer() {
+  if (timerInt) return; // keep running across reconnects
+  liveSince = Date.now();
+  timerInt = setInterval(() => {
+    const s = Math.floor((Date.now() - liveSince) / 1000);
+    els.timer.textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  }, 1000);
+}
+function stopTimer() { clearInterval(timerInt); timerInt = null; els.timer.textContent = '00:00'; }
 
 // Show the engine picker only if the server has an OpenAI key configured.
 fetch('/api/config').then((r) => r.json()).then((cfg) => {
@@ -31,6 +47,12 @@ fetch('/api/config').then((r) => r.json()).then((cfg) => {
 // offer a one-tap resume (the mic needs a user gesture, browser rule).
 const LIVE_KEY = 'lt-live-room';
 const wasLive = sessionStorage.getItem(LIVE_KEY) === roomId;
+
+// Restore the engine choice across a refresh (otherwise it'd reset to Sarvam).
+const PROVIDER_KEY = 'lt-provider';
+const savedProvider = sessionStorage.getItem(PROVIDER_KEY);
+if (savedProvider === 'sarvam' || savedProvider === 'openai') els.engine.value = savedProvider;
+if (savedProvider === 'openai') els.enginewrap.style.display = 'block';
 
 function setBadge(onAir) {
   els.badge.className = 'pill ' + (onAir ? 'air' : 'idle');
@@ -132,10 +154,15 @@ function connect() {
       setConn('live', true);
       setBadge(true);
       sessionStorage.setItem(LIVE_KEY, roomId); // survive a refresh
+      sessionStorage.setItem(PROVIDER_KEY, els.engine.value); // remember chosen engine
       attempts = 0;
+      startTimer();
       ws.send(JSON.stringify({ type: 'go-live' }));
     } else if (msg.type === 'listener-count') {
       els.count.textContent = msg.count;
+      const parts = Object.entries(msg.byLang || {}).filter(([, n]) => n > 0).map(([l, n]) => `${n} ${LANG_NAME[l] || l}`);
+      if (parts.length) { els.bylang.textContent = parts.join(' · '); els.bylangrow.style.display = 'flex'; }
+      else els.bylangrow.style.display = 'none';
     } else if (msg.type === 'room-closed') {
       els.error.textContent = msg.message;
       stop();
@@ -189,6 +216,7 @@ function stop() {
   intentional = true;
   clearTimeout(reconnectTimer);
   sessionStorage.removeItem(LIVE_KEY); // intentional stop — don't offer resume
+  sessionStorage.removeItem(PROVIDER_KEY);
   els.resume.classList.remove('show');
   els.go.textContent = 'Go Live';
   els.go.classList.remove('live');
@@ -196,7 +224,9 @@ function stop() {
   els.engine.disabled = false;
   setConn('idle', false);
   setBadge(false);
+  stopTimer();
   els.count.textContent = '0';
+  els.bylangrow.style.display = 'none';
   resetMeter();
   if (ws) { ws.close(); ws = null; }
   if (workletNode) { workletNode.disconnect(); workletNode = null; }

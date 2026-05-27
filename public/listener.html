@@ -38,10 +38,26 @@
 
         <div class="status">
           <div class="row"><span>Connection</span><strong><span class="dot" id="dot"></span><span id="conn">idle</span></strong></div>
-          <div class="row"><span>Speaker</span><strong><span id="speaker">—</span><span class="eq" id="eq"><i></i><i></i><i></i></span></strong></div>
+          <div class="row"><span>Speaker</span><strong><span id="speaker">—</span><span class="eq" id="eq"><i></i><i></i><i></i><i></i><i></i></span></strong></div>
         </div>
+
+        <label for="vol">Volume</label>
+        <div class="vol-row">
+          <span class="ic">🔊</span>
+          <input type="range" id="vol" min="0" max="150" value="100" />
+          <output id="volout">100%</output>
+        </div>
+
         <p class="err" id="error"></p>
         <p class="hint">You can change the language any time — no need to rejoin.</p>
+      </div>
+
+      <div class="card">
+        <div class="cap-head">
+          <h2>Live captions</h2>
+          <span class="eq" id="capeq"><i></i><i></i><i></i><i></i><i></i></span>
+        </div>
+        <div class="cap-body" id="capbody"><span class="cap-empty">Captions appear here once the speaker is translating…</span></div>
       </div>
     </div>
 
