@@ -3,61 +3,143 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Live Translation</title>
+    <title>Live Translation — Rooms</title>
+    <link rel="stylesheet" href="app.css" />
     <style>
-      body { font-family: system-ui, sans-serif; max-width: 480px; margin: 56px auto; padding: 0 16px; }
-      h1 { font-size: 1.5rem; text-align: center; }
-      p.sub { text-align: center; color: #6b7280; margin-top: -8px; }
-      .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin: 20px 0; }
-      .card h2 { font-size: 1.05rem; margin: 0 0 4px; }
-      .card p { color: #6b7280; margin: 0 0 14px; font-size: 0.9rem; }
-      button, .btn { font-size: 1rem; padding: 14px; width: 100%; box-sizing: border-box; border: 0; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer; text-align: center; display: block; text-decoration: none; }
-      .speaker { background: #2563eb; }
-      .listener { background: #16a34a; }
-      .join-row { display: flex; gap: 8px; }
-      .join-row input { flex: 1; font-size: 1rem; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; text-transform: lowercase; }
-      .join-row button { width: auto; padding: 12px 18px; }
+      .room { display: flex; gap: 14px; align-items: center; }
+      .room .qr { width: 72px; height: 72px; border-radius: 8px; border: 1px solid var(--line); image-rendering: pixelated; flex-shrink: 0; cursor: pointer; background:#fff; }
+      .room .meta { flex: 1; min-width: 0; }
+      .room .nm { font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+      .room .nm .edit { cursor: pointer; color: var(--muted); font-size: 0.9rem; background:none;border:0;width:auto;padding:2px; }
+      .room .id { color: var(--muted); font-size: 0.82rem; font-family: ui-monospace, monospace; }
+      .room .st { font-size: 0.85rem; margin-top: 4px; }
+      .room .acts { display: flex; gap: 8px; margin-top: 10px; }
+      .room .acts button { width: auto; padding: 8px 12px; font-size: 0.82rem; font-weight: 600; }
+      .empty { color: var(--muted); text-align: center; padding: 18px 0; font-size: 0.9rem; }
+      .live-pill { color: #16a34a; font-weight: 700; }
+      .idle-pill { color: var(--muted); }
     </style>
   </head>
   <body>
-    <h1>🗣️ Live Translation</h1>
-    <p class="sub">Real-time multilingual audio for presentation rooms</p>
-
-    <div class="card">
-      <h2>Host a room</h2>
-      <p>Start speaking. Your audience scans a QR code to join and hears you in their own language.</p>
-      <button class="speaker" id="host">Host a new room →</button>
+    <div class="brand">
+      <div class="logo">🗣️ Live Translation</div>
+      <div class="tag">Create a room, show its QR, let people scan to join</div>
     </div>
 
-    <div class="card">
-      <h2>Join a room</h2>
-      <p>Enter the room code shared by the speaker (or just scan their QR code).</p>
-      <div class="join-row">
-        <input id="code" placeholder="room code" autocomplete="off" />
-        <button class="listener" id="join">Join</button>
+    <div class="wrap">
+      <div class="card">
+        <h2>Create a room</h2>
+        <p class="desc">Each room gets a unique code + QR. Everyone scans the same code, then picks Speaker or Listener.</p>
+        <div class="join-row">
+          <input id="name" placeholder="Room name (optional)" autocomplete="off" />
+          <button class="btn-speaker" id="create">Create</button>
+        </div>
+        <p class="err" id="error"></p>
+      </div>
+
+      <div class="card">
+        <h2>Rooms</h2>
+        <div id="rooms"><p class="empty">Loading…</p></div>
       </div>
     </div>
 
     <script>
-      // Short, readable, unambiguous room id (no 0/o/1/l/i confusion).
-      function newRoomId() {
-        const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
-        let id = '';
-        for (let i = 0; i < 6; i++) id += alphabet[Math.floor(Math.random() * alphabet.length)];
-        return id;
+      const origin = location.origin;
+      const joinLink = (id) => `${origin}/join.html?room=${encodeURIComponent(id)}`;
+      const els = {
+        name: document.getElementById('name'),
+        create: document.getElementById('create'),
+        rooms: document.getElementById('rooms'),
+        error: document.getElementById('error'),
+      };
+
+      async function api(method, path, body) {
+        const res = await fetch(path, {
+          method,
+          headers: body ? { 'Content-Type': 'application/json' } : undefined,
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
+        return res.status === 204 ? null : res.json();
       }
 
-      document.getElementById('host').addEventListener('click', () => {
-        location.href = 'speaker.html?room=' + newRoomId();
+      function render(rooms) {
+        if (!rooms.length) {
+          els.rooms.innerHTML = '<p class="empty">No rooms yet — create one above.</p>';
+          return;
+        }
+        rooms.sort((a, b) => b.createdAt - a.createdAt);
+        els.rooms.innerHTML = '';
+        for (const r of rooms) {
+          const status = r.live
+            ? `<span class="live-pill">● live</span> · ${r.listeners} listener${r.listeners === 1 ? '' : 's'}`
+            : `<span class="idle-pill">○ idle</span> · ${r.listeners} listener${r.listeners === 1 ? '' : 's'}`;
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.style.margin = '0 0 12px';
+          card.innerHTML = `
+            <div class="room">
+              <img class="qr" src="/api/qr?data=${encodeURIComponent(joinLink(r.id))}" title="Open big QR screen" data-host="${r.id}" />
+              <div class="meta">
+                <div class="nm"><span>${escapeHtml(r.name)}</span><button class="edit" data-edit="${r.id}" title="Rename">✏️</button></div>
+                <div class="id">${r.id}</div>
+                <div class="st">${status}</div>
+                <div class="acts">
+                  <button class="btn-listener" data-copy="${r.id}">Copy link</button>
+                  <button class="btn-ghost" data-host="${r.id}">QR screen</button>
+                  <button class="btn-stop" data-del="${r.id}">Delete</button>
+                </div>
+              </div>
+            </div>`;
+          els.rooms.appendChild(card);
+        }
+      }
+
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      }
+
+      async function refresh() {
+        try {
+          render(await api('GET', '/api/rooms'));
+        } catch (e) {
+          els.error.textContent = 'Could not load rooms: ' + e.message;
+        }
+      }
+
+      els.create.addEventListener('click', async () => {
+        els.error.textContent = '';
+        try {
+          const room = await api('POST', '/api/rooms', { name: els.name.value });
+          els.name.value = '';
+          await refresh();
+          // Jump straight to the new room's QR screen so the host can show it.
+          location.href = `host.html?room=${encodeURIComponent(room.id)}`;
+        } catch (e) {
+          els.error.textContent = 'Create failed: ' + e.message;
+        }
+      });
+      els.name.addEventListener('keydown', (e) => { if (e.key === 'Enter') els.create.click(); });
+
+      els.rooms.addEventListener('click', async (e) => {
+        const t = e.target.closest('[data-host],[data-copy],[data-del],[data-edit]');
+        if (!t) return;
+        if (t.dataset.host) {
+          location.href = `host.html?room=${encodeURIComponent(t.dataset.host)}`;
+        } else if (t.dataset.copy) {
+          try { await navigator.clipboard.writeText(joinLink(t.dataset.copy)); t.textContent = 'Copied ✓'; setTimeout(() => (t.textContent = 'Copy link'), 1200); } catch {}
+        } else if (t.dataset.edit) {
+          const name = prompt('Rename room', '');
+          if (name && name.trim()) { await api('PATCH', `/api/rooms/${t.dataset.edit}`, { name: name.trim() }); refresh(); }
+        } else if (t.dataset.del) {
+          if (confirm('Delete this room? Anyone connected will be disconnected.')) {
+            await api('DELETE', `/api/rooms/${t.dataset.del}`); refresh();
+          }
+        }
       });
 
-      const code = document.getElementById('code');
-      const go = () => {
-        const id = (code.value || '').trim().toLowerCase();
-        if (id) location.href = 'listener.html?room=' + encodeURIComponent(id);
-      };
-      document.getElementById('join').addEventListener('click', go);
-      code.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+      refresh();
+      setInterval(refresh, 4000); // keep live status + listener counts fresh
     </script>
   </body>
 </html>

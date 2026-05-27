@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Join — Live Translation</title>
+    <link rel="stylesheet" href="app.css" />
+  </head>
+  <body>
+    <div class="brand">
+      <div class="logo">🗣️ Live Translation</div>
+      <div class="tag">Room <strong id="roomtag">—</strong></div>
+    </div>
+
+    <div class="wrap">
+      <div class="card">
+        <h2>How are you joining?</h2>
+        <p class="desc">One person is the Speaker. Everyone else listens in the language they choose.</p>
+
+        <div class="roles">
+          <button class="role" id="role-speaker" data-role="speaker">
+            <span class="ic">🎤</span>
+            <span>
+              <span class="t">I'm the Speaker</span><br />
+              <span class="s">Talk — the room hears you translated</span>
+            </span>
+          </button>
+          <button class="role" id="role-listener" data-role="listener">
+            <span class="ic">🎧</span>
+            <span>
+              <span class="t">I'm a Listener</span><br />
+              <span class="s">Hear the speaker in your language</span>
+            </span>
+          </button>
+        </div>
+
+        <div id="langwrap" style="display:none">
+          <label for="lang" id="langlabel">Language</label>
+          <select id="lang">
+            <option value="hi">Hindi</option>
+            <option value="en">English</option>
+          </select>
+          <button class="btn-speaker mt" id="continue">Continue →</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const params = new URLSearchParams(location.search);
+      const roomId = params.get('room') || 'main';
+      document.getElementById('roomtag').textContent = roomId;
+
+      let role = null;
+      const els = {
+        speaker: document.getElementById('role-speaker'),
+        listener: document.getElementById('role-listener'),
+        langwrap: document.getElementById('langwrap'),
+        langlabel: document.getElementById('langlabel'),
+        cont: document.getElementById('continue'),
+      };
+
+      function pick(r) {
+        role = r;
+        els.speaker.classList.toggle('sel-speaker', r === 'speaker');
+        els.listener.classList.toggle('sel-listener', r === 'listener');
+        els.langlabel.textContent = r === 'speaker' ? 'I will speak in' : 'I want to hear in';
+        els.cont.className = (r === 'speaker' ? 'btn-speaker' : 'btn-listener') + ' mt';
+        els.langwrap.style.display = 'block';
+      }
+
+      els.speaker.addEventListener('click', () => pick('speaker'));
+      els.listener.addEventListener('click', () => pick('listener'));
+
+      els.cont.addEventListener('click', () => {
+        if (!role) return;
+        const lang = document.getElementById('lang').value;
+        const page = role === 'speaker' ? 'speaker.html' : 'listener.html';
+        location.href = `${page}?room=${encodeURIComponent(roomId)}&lang=${lang}`;
+      });
+    </script>
+  </body>
+</html>

@@ -4,7 +4,8 @@ import { dirname, join } from 'node:path';
 import http from 'node:http';
 import express from 'express';
 import { WebSocketServer } from 'ws';
-import { handleConnection } from './signaling.js';
+import { handleConnection, closeRoomSockets } from './signaling.js';
+import { createRoom, renameRoom, deleteRoom, listRooms, getRoom } from './rooms.js';
 import { log } from './log.js';
 import { snapshot } from './metrics.js';
 import { costSnapshot } from './cost.js';
@@ -14,9 +15,36 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
 
 const app = express();
+app.use(express.json());
 
 // Health check for the platform/proxy (Easypanel, Traefik, etc.).
 app.get('/health', (_req, res) => res.json({ ok: true, uptime: process.uptime() }));
+
+// --- Room dashboard API ---------------------------------------------------
+// In-memory now (see rooms.js roomStore seam). NOTE: create/delete are open for
+// local testing; add a light auth gate here before the public deploy.
+
+app.get('/api/rooms', (_req, res) => res.json(listRooms()));
+
+app.post('/api/rooms', (req, res) => {
+  const room = createRoom(req.body?.name);
+  log.room(`dashboard created room "${room.id}" (${room.name})`);
+  res.status(201).json({ id: room.id, name: room.name });
+});
+
+app.patch('/api/rooms/:id', (req, res) => {
+  const room = renameRoom(req.params.id, req.body?.name);
+  if (!room) return res.status(404).json({ error: 'room not found' });
+  res.json({ id: room.id, name: room.name });
+});
+
+app.delete('/api/rooms/:id', (req, res) => {
+  const room = getRoom(req.params.id);
+  if (!room) return res.status(404).json({ error: 'room not found' });
+  closeRoomSockets(room, 'This room was closed by the host.');
+  deleteRoom(req.params.id);
+  res.json({ ok: true });
+});
 
 app.use(express.static(join(__dirname, '..', 'public')));
 

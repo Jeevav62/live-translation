@@ -1,0 +1,126 @@
+/* Shared styles for all Live Translation pages. Mobile-first — most of the
+   audience is on phones scanning a QR. */
+
+:root {
+  --bg: #0b1120;
+  --bg-soft: #111a2e;
+  --card: #ffffff;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --speaker: #2563eb;
+  --speaker-dark: #1d4ed8;
+  --listener: #16a34a;
+  --listener-dark: #15803d;
+  --danger: #dc2626;
+  --radius: 16px;
+  --shadow: 0 10px 30px -12px rgba(2, 6, 23, 0.35);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #1e293b 0%, var(--bg) 60%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 16px 48px;
+}
+
+.brand {
+  color: #e2e8f0;
+  text-align: center;
+  margin: 8px 0 22px;
+}
+.brand .logo { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
+.brand .tag { color: #94a3b8; font-size: 0.9rem; margin-top: 2px; }
+
+.wrap { width: 100%; max-width: 460px; }
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px;
+  margin: 0 0 18px;
+}
+.card h2 { font-size: 1.05rem; margin: 0 0 4px; }
+.card .desc { color: var(--muted); margin: 0 0 16px; font-size: 0.9rem; line-height: 1.4; }
+
+label { display: block; margin: 14px 0 6px; font-weight: 600; font-size: 0.9rem; }
+
+select, input, button, .btn {
+  font-size: 1rem;
+  font-family: inherit;
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+}
+select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 18px) center, calc(100% - 13px) center; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+
+button, .btn {
+  border: 0;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  display: block;
+  transition: transform 0.05s ease, filter 0.15s ease;
+}
+button:active, .btn:active { transform: translateY(1px); }
+button:hover, .btn:hover { filter: brightness(1.05); }
+button:disabled { background: #cbd5e1 !important; cursor: default; filter: none; }
+
+.btn-speaker { background: var(--speaker); }
+.btn-listener { background: var(--listener); }
+.btn-stop, button.live, button.stop { background: var(--danger); }
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); font-weight: 600; }
+
+.mt { margin-top: 18px; }
+
+/* status panel */
+.status { margin-top: 20px; padding: 14px 16px; border-radius: 12px; background: #f8fafc; border: 1px solid var(--line); }
+.row { display: flex; justify-content: space-between; align-items: center; margin: 7px 0; font-size: 0.92rem; }
+.row span { color: var(--muted); }
+.row strong { color: var(--ink); }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #cbd5e1; margin-right: 7px; vertical-align: middle; }
+.dot.on { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.18); }
+.dot.warn { background: #f59e0b; }
+.err { color: var(--danger); font-size: 0.88rem; min-height: 1em; }
+
+/* role picker (join page) */
+.roles { display: grid; gap: 12px; }
+.role {
+  display: flex; align-items: center; gap: 14px;
+  padding: 18px; border-radius: 14px; cursor: pointer;
+  border: 2px solid var(--line); background: #fff; color: var(--ink);
+  text-align: left; width: 100%;
+}
+.role:hover { border-color: #cbd5e1; }
+.role.sel-speaker { border-color: var(--speaker); background: #eff6ff; }
+.role.sel-listener { border-color: var(--listener); background: #f0fdf4; }
+.role .ic { font-size: 1.7rem; }
+.role .t { font-weight: 700; font-size: 1.05rem; }
+.role .s { color: var(--muted); font-size: 0.85rem; }
+
+/* QR / share */
+.qr-box { text-align: center; }
+.qr-box img { width: 260px; height: 260px; margin: 12px auto; display: block; image-rendering: pixelated; border-radius: 12px; background: #fff; padding: 8px; border: 1px solid var(--line); }
+.roomcode { font-size: 2rem; font-weight: 800; letter-spacing: 3px; margin: 4px 0; }
+.roomcode.big { font-size: 2.6rem; }
+.hint { color: var(--muted); font-size: 0.85rem; margin: 8px 0 0; line-height: 1.4; }
+
+.join-row { display: flex; gap: 10px; }
+.join-row input { flex: 1; text-transform: lowercase; }
+.join-row button { width: auto; padding: 13px 20px; }
+
+a.link { color: var(--speaker); text-decoration: none; font-weight: 600; }

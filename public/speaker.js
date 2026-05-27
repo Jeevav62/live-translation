@@ -4,32 +4,49 @@ const params = new URLSearchParams(location.search);
 const roomId = params.get('room') || 'main';
 
 const els = {
-  room: document.getElementById('room'),
   lang: document.getElementById('lang'),
   go: document.getElementById('go'),
   conn: document.getElementById('conn'),
+  dot: document.getElementById('dot'),
   count: document.getElementById('count'),
   error: document.getElementById('error'),
+  roomtag: document.getElementById('roomtag'),
   roomcode: document.getElementById('roomcode'),
   qr: document.getElementById('qr'),
   copy: document.getElementById('copy'),
 };
 
-els.room.innerHTML = `<option>${roomId}</option>`;
+// Preselect language passed from the join page (?lang=hi|en).
+const preLang = params.get('lang');
+if (preLang === 'hi' || preLang === 'en') els.lang.value = preLang;
 
-// Show the room code + a QR encoding the listener join link for this room.
-const listenerUrl = `${location.origin}/listener.html?room=${encodeURIComponent(roomId)}`;
+const clientId = (() => {
+  let id = localStorage.getItem('lt-client-id');
+  if (!id) { id = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('lt-client-id', id); }
+  return id;
+})();
+
+els.roomtag.textContent = roomId;
 els.roomcode.textContent = roomId;
-els.qr.src = `/api/qr?data=${encodeURIComponent(listenerUrl)}`;
+
+// The QR encodes the unified join link — everyone scans the SAME code and then
+// chooses Speaker or Listener on join.html.
+const joinUrl = `${location.origin}/join.html?room=${encodeURIComponent(roomId)}`;
+els.qr.src = `/api/qr?data=${encodeURIComponent(joinUrl)}`;
 els.copy.addEventListener('click', async () => {
   try {
-    await navigator.clipboard.writeText(listenerUrl);
+    await navigator.clipboard.writeText(joinUrl);
     els.copy.textContent = 'Copied ✓';
-    setTimeout(() => (els.copy.textContent = 'Copy listener link'), 1500);
+    setTimeout(() => (els.copy.textContent = 'Copy join link'), 1500);
   } catch {
-    els.copy.textContent = listenerUrl;
+    els.copy.textContent = joinUrl;
   }
 });
+
+function setConn(text, on) {
+  els.conn.textContent = text;
+  els.dot.className = 'dot' + (on ? ' on' : '');
+}
 
 let ws = null;
 let audioCtx = null;
@@ -51,20 +68,20 @@ async function start() {
 }
 
 function connect() {
-  els.conn.textContent = 'connecting…';
+  setConn('connecting…', false);
   const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${wsProto}://${location.host}/ws`);
   ws.binaryType = 'arraybuffer';
 
   ws.onopen = () => {
-    ws.send(JSON.stringify({ type: 'join', room: roomId, role: 'speaker', lang: els.lang.value }));
+    ws.send(JSON.stringify({ type: 'join', room: roomId, role: 'speaker', lang: els.lang.value, clientId }));
   };
 
   ws.onmessage = (ev) => {
     if (typeof ev.data !== 'string') return;
     const msg = JSON.parse(ev.data);
     if (msg.type === 'joined') {
-      els.conn.textContent = 'live';
+      setConn('live', true);
       ws.send(JSON.stringify({ type: 'go-live' }));
       live = true;
       els.go.textContent = 'Stop';
@@ -72,6 +89,9 @@ function connect() {
       els.lang.disabled = true;
     } else if (msg.type === 'listener-count') {
       els.count.textContent = msg.count;
+    } else if (msg.type === 'room-closed') {
+      els.error.textContent = msg.message;
+      stop();
     } else if (msg.type === 'error') {
       els.error.textContent = msg.message;
       stop();
@@ -79,7 +99,7 @@ function connect() {
   };
 
   ws.onclose = () => {
-    els.conn.textContent = 'disconnected';
+    setConn('disconnected', false);
     if (live) stop();
   };
 }
@@ -112,7 +132,7 @@ function stop() {
   els.go.textContent = 'Go Live';
   els.go.classList.remove('live');
   els.lang.disabled = false;
-  els.conn.textContent = 'idle';
+  setConn('idle', false);
   if (ws) { ws.close(); ws = null; }
   if (workletNode) { workletNode.disconnect(); workletNode = null; }
   if (mediaStream) { mediaStream.getTracks().forEach((t) => t.stop()); mediaStream = null; }

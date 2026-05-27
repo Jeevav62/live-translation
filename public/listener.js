@@ -7,15 +7,32 @@ const params = new URLSearchParams(location.search);
 const roomId = params.get('room') || 'main';
 
 const els = {
-  room: document.getElementById('room'),
   lang: document.getElementById('lang'),
   join: document.getElementById('join'),
   conn: document.getElementById('conn'),
+  dot: document.getElementById('dot'),
   speaker: document.getElementById('speaker'),
   latency: document.getElementById('latency'),
   error: document.getElementById('error'),
+  roomtag: document.getElementById('roomtag'),
 };
-els.room.innerHTML = `<option>${roomId}</option>`;
+els.roomtag.textContent = roomId;
+
+// Preselect language passed from the join page (?lang=hi|en).
+const preLang = params.get('lang');
+if (preLang === 'hi' || preLang === 'en') els.lang.value = preLang;
+
+// Stable per-browser id so the server can enforce one-room-per-listener.
+const clientId = (() => {
+  let id = localStorage.getItem('lt-client-id');
+  if (!id) { id = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('lt-client-id', id); }
+  return id;
+})();
+
+function setConn(text, on) {
+  els.conn.textContent = text;
+  els.dot.className = 'dot' + (on ? ' on' : '');
+}
 
 let ws = null;
 let audioCtx = null;
@@ -54,13 +71,13 @@ async function start() {
 }
 
 function connect() {
-  els.conn.textContent = 'connecting…';
+  setConn('connecting…', false);
   const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${wsProto}://${location.host}/ws`);
   ws.binaryType = 'arraybuffer';
 
   ws.onopen = () => {
-    ws.send(JSON.stringify({ type: 'join', room: roomId, role: 'listener', lang: els.lang.value }));
+    ws.send(JSON.stringify({ type: 'join', room: roomId, role: 'listener', lang: els.lang.value, clientId }));
   };
 
   ws.onmessage = (ev) => {
@@ -72,7 +89,7 @@ function connect() {
   };
 
   ws.onclose = () => {
-    els.conn.textContent = 'disconnected';
+    setConn('disconnected', false);
     if (listening) stop();
   };
 
@@ -84,7 +101,7 @@ function connect() {
 
 function handleControl(msg) {
   if (msg.type === 'joined') {
-    els.conn.textContent = 'connected';
+    setConn('connected', true);
     speakerLang = msg.speakerLang || speakerLang;
     updateLatencyLabel();
   } else if (msg.type === 'audio-format') {
@@ -96,6 +113,9 @@ function handleControl(msg) {
   } else if (msg.type === 'latency') {
     // Translated path: server pushes per-utterance E2E + running median.
     els.latency.textContent = `${(msg.last / 1000).toFixed(1)}s · median ${(msg.p50 / 1000).toFixed(1)}s (n=${msg.count})`;
+  } else if (msg.type === 'evicted' || msg.type === 'room-closed') {
+    els.error.textContent = msg.message;
+    stop();
   } else if (msg.type === 'error') {
     els.error.textContent = msg.message;
   }
@@ -121,7 +141,7 @@ function stop() {
   listening = false;
   els.join.textContent = 'Listen';
   els.join.classList.remove('stop');
-  els.conn.textContent = 'idle';
+  setConn('idle', false);
   els.speaker.textContent = '—';
   els.latency.textContent = '—';
   speakerLang = null;
