@@ -2,8 +2,9 @@
 
 Real-time speech translation for live presentations. A **speaker** talks in one
 language; each **listener** hears it in the language *they* choose — with
-interpreter-style latency. Each room is shareable via a link (QR code in
-progress), with one speaker and any number of listeners.
+interpreter-style latency. Each room has **one QR code that everyone scans** —
+speaker and audience alike — then each person picks their role and language.
+One speaker per room, unlimited listeners.
 
 - **Same language** (e.g. Hindi → Hindi): audio is relayed raw — no AI, lowest latency (~100–150ms).
 - **Different language** (e.g. English → Hindi): `Speech-to-Text → (Translate) → Text-to-Speech`.
@@ -92,7 +93,14 @@ PORT=3000
 npm start        # or: npm run dev  (auto-restart on file changes)
 ```
 
-Open two tabs:
+Open http://localhost:3000 — the **room dashboard**. Click **Create** to mint a
+room (unique code + QR); you're taken to its QR screen (`host.html`). Everyone
+scans the same QR → `join.html` → pick **Speaker** or **Listener** + a language.
+Rename or delete rooms from the dashboard; deleting disconnects everyone in it.
+A listener is kept to **one room per browser** (joining another evicts the first).
+
+For quick local testing you can also jump straight in:
+
 - **Speaker:**  http://localhost:3000/speaker.html?room=main
 - **Listener:** http://localhost:3000/listener.html?room=main
 - **Metrics:**  http://localhost:3000/metrics
@@ -122,8 +130,12 @@ src/
     sarvamTTS.js         Bulbul streaming TTS client
     provider.js          provider-agnostic interface (Sarvam now, others later)
 public/
+  index.html             room dashboard: create / list / rename / delete + per-room QR
+  host.html              projector screen: one room QR everyone scans
+  join.html              role picker after scan (Speaker / Listener + language)
   speaker.html / .js     mic capture → 16kHz PCM16 → WebSocket
   listener.html / .js    receive audio frames → jitter buffer → playback
+  app.css                shared stylesheet for all pages
   audio-utils.js         Float32 ↔ Int16, downsampling
   pcm-worklet.js         AudioWorklet mic capture
 scripts/

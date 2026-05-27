@@ -18,6 +18,7 @@ import {
   getRoom,
   joinAsSpeaker,
   joinAsListener,
+  listenerConnectionsForClient,
   leave,
 } from './rooms.js';
 import { relaySameLang, broadcastControl, sendControl } from './relay.js';
@@ -108,6 +109,9 @@ function doJoin(ws, msg) {
     return sendControl(ws, { type: 'error', message: 'Already joined' });
   }
 
+  // Best-effort browser identity for the one-room-per-listener rule.
+  if (typeof msg.clientId === 'string') ws.clientId = msg.clientId;
+
   const room = getOrCreateRoom(roomId);
   const result =
     role === 'speaker'
@@ -129,6 +133,16 @@ function doJoin(ws, msg) {
       `#${ws.connId} joined "${room.id}" as LISTENER, wants ${lang(msg.lang)} ` +
         `[path: ${describePath(path)}] (${room.listeners.size} listener${room.listeners.size === 1 ? '' : 's'})`
     );
+  }
+
+  // One room per listener (best-effort, per browser): drop this client's other
+  // listener sessions so a single browser only ever listens in one room.
+  if (role === 'listener' && ws.clientId) {
+    for (const old of listenerConnectionsForClient(ws.clientId, ws)) {
+      sendControl(old, { type: 'evicted', message: 'You joined another room on this device.' });
+      old.close();
+      log.room(`#${ws.connId} evicted prior listener session #${old.connId} (same device)`);
+    }
   }
 
   sendControl(ws, {
@@ -217,6 +231,17 @@ const PATH_DESC = {
 };
 function describePath(path) {
   return PATH_DESC[path] || path;
+}
+
+// Dashboard deleted a room: notify and disconnect everyone, tear down pipelines.
+export function closeRoomSockets(room, message) {
+  destroyPipelines(room);
+  const all = [room.speaker, ...room.listeners].filter(Boolean);
+  for (const ws of all) {
+    sendControl(ws, { type: 'room-closed', message: message || 'This room was closed.' });
+    ws.close();
+  }
+  log.room(`"${room.id}" closed by host — ${all.length} connection(s) dropped`);
 }
 
 function notifyRoomState(room) {

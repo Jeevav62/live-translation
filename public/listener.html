@@ -3,36 +3,34 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Listener — Translation Rooms</title>
-    <style>
-      body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
-      h1 { font-size: 1.3rem; }
-      label { display: block; margin: 16px 0 4px; font-weight: 600; }
-      select, button { font-size: 1rem; padding: 10px; width: 100%; box-sizing: border-box; }
-      button { margin-top: 20px; border: 0; border-radius: 8px; background: #16a34a; color: #fff; cursor: pointer; }
-      button.stop { background: #dc2626; }
-      #status { margin-top: 20px; padding: 12px; border-radius: 8px; background: #f3f4f6; }
-      .row { display: flex; justify-content: space-between; margin: 6px 0; }
-      .err { color: #dc2626; }
-    </style>
+    <title>Listener — Live Translation</title>
+    <link rel="stylesheet" href="app.css" />
   </head>
   <body>
-    <h1>Listener</h1>
-    <label for="room">Room</label>
-    <select id="room"></select>
-    <label for="lang">I want to hear in</label>
-    <select id="lang">
-      <option value="hi">Hindi</option>
-      <option value="en">English</option>
-    </select>
-    <button id="join">Listen</button>
-    <div id="status">
-      <div class="row"><span>Connection</span><strong id="conn">idle</strong></div>
-      <div class="row"><span>Speaker</span><strong id="speaker">—</strong></div>
-      <div class="row"><span>Latency</span><strong id="latency">—</strong></div>
-      <div class="err"><span id="error"></span></div>
+    <div class="brand">
+      <div class="logo">🎧 Listener</div>
+      <div class="tag">Room <strong id="roomtag">—</strong></div>
     </div>
-    <p style="color:#6b7280;font-size:0.85rem">You can change the language above at any time.</p>
+
+    <div class="wrap">
+      <div class="card">
+        <label for="lang">I want to hear in</label>
+        <select id="lang">
+          <option value="hi">Hindi</option>
+          <option value="en">English</option>
+        </select>
+        <button class="btn-listener mt" id="join">Listen</button>
+
+        <div class="status">
+          <div class="row"><span>Connection</span><strong><span class="dot" id="dot"></span><span id="conn">idle</span></strong></div>
+          <div class="row"><span>Speaker</span><strong id="speaker">—</strong></div>
+          <div class="row"><span>Latency</span><strong id="latency">—</strong></div>
+        </div>
+        <p class="err" id="error"></p>
+        <p class="hint">You can change the language above at any time — no need to rejoin.</p>
+      </div>
+    </div>
+
     <script type="module" src="listener.js"></script>
   </body>
 </html>

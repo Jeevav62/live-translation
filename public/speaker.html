@@ -3,48 +3,38 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Speaker — Translation Rooms</title>
-    <style>
-      body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
-      h1 { font-size: 1.3rem; }
-      label { display: block; margin: 16px 0 4px; font-weight: 600; }
-      select, button { font-size: 1rem; padding: 10px; width: 100%; box-sizing: border-box; }
-      button { margin-top: 20px; border: 0; border-radius: 8px; background: #2563eb; color: #fff; cursor: pointer; }
-      button:disabled { background: #9ca3af; cursor: default; }
-      button.live { background: #dc2626; }
-      #status { margin-top: 20px; padding: 12px; border-radius: 8px; background: #f3f4f6; }
-      .row { display: flex; justify-content: space-between; margin: 6px 0; }
-      .err { color: #dc2626; }
-      #share { margin-top: 20px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px; text-align: center; }
-      #share h2 { font-size: 0.95rem; margin: 0 0 4px; color: #374151; }
-      #share .code { font-size: 1.6rem; font-weight: 700; letter-spacing: 2px; margin: 4px 0; }
-      #qr { width: 220px; height: 220px; margin: 10px auto; display: block; image-rendering: pixelated; }
-      .copy { margin-top: 8px; font-size: 0.85rem; padding: 8px; background: #374151; }
-      .hint { color: #6b7280; font-size: 0.85rem; margin: 6px 0 0; }
-    </style>
+    <title>Speaker — Live Translation</title>
+    <link rel="stylesheet" href="app.css" />
   </head>
   <body>
-    <h1>Speaker</h1>
-    <label for="room">Room</label>
-    <select id="room"></select>
-    <label for="lang">I will speak in</label>
-    <select id="lang">
-      <option value="hi">Hindi</option>
-      <option value="en">English</option>
-    </select>
-    <button id="go">Go Live</button>
-    <div id="status">
-      <div class="row"><span>Connection</span><strong id="conn">idle</strong></div>
-      <div class="row"><span>Listeners</span><strong id="count">0</strong></div>
-      <div class="row err"><span id="error"></span></div>
+    <div class="brand">
+      <div class="logo">🎤 Speaker</div>
+      <div class="tag">Room <strong id="roomtag">—</strong></div>
     </div>
 
-    <div id="share">
-      <h2>Audience joins by scanning this</h2>
-      <div class="code">Room <span id="roomcode">—</span></div>
-      <img id="qr" alt="Room QR code" />
-      <button class="copy" id="copy">Copy listener link</button>
-      <p class="hint">Listeners pick the language they want to hear.</p>
+    <div class="wrap">
+      <div class="card">
+        <label for="lang">I will speak in</label>
+        <select id="lang">
+          <option value="hi">Hindi</option>
+          <option value="en">English</option>
+        </select>
+        <button class="btn-speaker mt" id="go">Go Live</button>
+
+        <div class="status">
+          <div class="row"><span>Connection</span><strong><span class="dot" id="dot"></span><span id="conn">idle</span></strong></div>
+          <div class="row"><span>Listeners</span><strong id="count">0</strong></div>
+        </div>
+        <p class="err" id="error"></p>
+      </div>
+
+      <div class="card qr-box">
+        <h2>Audience joins by scanning this</h2>
+        <img id="qr" alt="Room QR code" />
+        <div class="roomcode">Room <span id="roomcode">—</span></div>
+        <button class="btn-ghost mt" id="copy">Copy join link</button>
+        <p class="hint">They scan, then pick their own language to hear.</p>
+      </div>
     </div>
 
     <script type="module" src="speaker.js"></script>
