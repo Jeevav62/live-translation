@@ -126,7 +126,8 @@ function doJoin(ws, msg) {
   }
 
   if (role === 'speaker') {
-    log.room(`#${ws.connId} joined "${room.id}" as SPEAKER, speaking ${lang(msg.lang)}`);
+    room.provider = msg.provider === 'openai' ? 'openai' : 'sarvam'; // engine for this room
+    log.room(`#${ws.connId} joined "${room.id}" as SPEAKER, speaking ${lang(msg.lang)} via ${room.provider}`);
   } else {
     const path = room.speakerLang ? routePath(room.speakerLang, msg.lang) : 'pending-speaker';
     log.room(

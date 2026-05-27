@@ -6,10 +6,11 @@ import express from 'express';
 import { WebSocketServer } from 'ws';
 import { handleConnection, closeRoomSockets } from './signaling.js';
 import { createRoom, renameRoom, deleteRoom, listRooms, getRoom } from './rooms.js';
-import { keyCount } from './sarvamKeys.js';
+import { keyCount as sarvamKeyCount } from './sarvamKeys.js';
+import { keyCount as openaiKeyCount } from './openaiKeys.js';
 import { log } from './log.js';
 import { snapshot } from './metrics.js';
-import { costSnapshot } from './cost.js';
+import { costSnapshot, roomCost } from './cost.js';
 import { qrPng } from './qr.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -20,6 +21,10 @@ app.use(express.json());
 
 // Health check for the platform/proxy (Easypanel, Traefik, etc.).
 app.get('/health', (_req, res) => res.json({ ok: true, uptime: process.uptime() }));
+
+// Which translation engines are available (drives the speaker's engine picker).
+app.get('/api/config', (_req, res) =>
+  res.json({ providers: { sarvam: sarvamKeyCount() > 0, openai: openaiKeyCount() > 0 } }));
 
 // --- Room dashboard API ---------------------------------------------------
 // In-memory now (see rooms.js roomStore seam). NOTE: create/delete are open for
@@ -37,6 +42,13 @@ app.patch('/api/rooms/:id', (req, res) => {
   const room = renameRoom(req.params.id, req.body?.name);
   if (!room) return res.status(404).json({ error: 'room not found' });
   res.json({ id: room.id, name: room.name });
+});
+
+// Live cost for one room (split by provider — currencies differ).
+app.get('/api/rooms/:id/cost', (req, res) => {
+  const room = getRoom(req.params.id);
+  const c = roomCost(req.params.id);
+  res.json({ ...c, name: room?.name || req.params.id, provider: room?.provider || null });
 });
 
 app.delete('/api/rooms/:id', (req, res) => {
@@ -88,13 +100,14 @@ const interval = setInterval(() => {
 }, HEARTBEAT_MS);
 wss.on('close', () => clearInterval(interval));
 
-const keyState = keyCount() > 0
-  ? `${keyCount()} key${keyCount() === 1 ? '' : 's'} loaded${keyCount() > 1 ? ' (auto-fallback enabled)' : ''}`
+const keyState = sarvamKeyCount() > 0
+  ? `${sarvamKeyCount()} key${sarvamKeyCount() === 1 ? '' : 's'} loaded${sarvamKeyCount() > 1 ? ' (auto-fallback enabled)' : ''}`
   : 'MISSING (translation disabled — relay still works)';
 
 server.listen(PORT, () => {
   log.info(`listening on http://localhost:${PORT}`);
   log.info(`Sarvam API key: ${keyState}`);
+  log.info(`OpenAI API key: ${openaiKeyCount() > 0 ? `${openaiKeyCount()} key(s) — gpt-realtime-translate available` : 'none (GPT engine disabled)'}`);
   log.info(`Speaker:  http://localhost:${PORT}/speaker.html?room=main`);
   log.info(`Listener: http://localhost:${PORT}/listener.html?room=main`);
   log.info(`Metrics:  http://localhost:${PORT}/metrics`);

@@ -11,7 +11,10 @@ One speaker per room, unlimited listeners.
 - **Top priorities:** accuracy and latency.
 
 Powered by [Sarvam AI](https://www.sarvam.ai) (Saaras STT, Bulbul TTS, text-translate),
-behind a provider-agnostic layer so other engines (e.g. Bhashini) can be swapped in later.
+behind a provider-agnostic layer. The **speaker can pick the translation engine per room**:
+**Sarvam** (STT → translate → TTS) or **OpenAI `gpt-realtime-translate`** (one speech-to-speech
+socket that streams translation while you talk). The GPT option appears only when an
+`OPENAI_API_KEY` is configured.
 
 ---
 

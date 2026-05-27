@@ -5,11 +5,16 @@
 // out to all listeners of that language.
 
 import { createSTT, createTTS, translateText } from './provider.js';
+import { createOpenAITranslator } from './openaiRealtime.js';
 import { sendToLang, sendControlToLang } from '../relay.js';
 import { log } from '../log.js';
 import { recordUtterance } from '../metrics.js';
-import { recordSttAudio, recordTtsChars, recordTranslateChars, costLine } from '../cost.js';
+import {
+  recordSttAudio, recordTtsChars, recordTranslateChars, costLine,
+  recordOpenAiAudio, openaiCostLine, flushCost,
+} from '../cost.js';
 import { currentKey, hasKeys, isKeyError, rotate } from '../sarvamKeys.js';
+import * as oaKeys from '../openaiKeys.js';
 
 const MAX_KEY_RESTARTS = 4; // cap auto-restarts when a key fails, to avoid loops
 
@@ -29,6 +34,14 @@ function hasVoice(pcm) {
   }
   return false;
 }
+
+// Sarvam streaming feels "batchy" because Saaras only emits a transcript after
+// its own (longish) silence timeout. We force finalization ourselves: flush
+// after a short micro-pause, and flush periodically during nonstop speech so a
+// long run still produces continuous output. Both windows are env-tunable.
+const num = (v, d) => (v != null && !Number.isNaN(parseFloat(v)) ? parseFloat(v) : d);
+const SILENCE_FLUSH_MS = num(process.env.SARVAM_SILENCE_FLUSH_MS, 350);
+const MAX_SEGMENT_MS = num(process.env.SARVAM_MAX_SEGMENT_MS, 4000);
 
 // Decide the processing path for a (speaker, listener) language pair.
 export function routePath(speakerLang, listenerLang) {
@@ -55,6 +68,8 @@ class TranslationPipeline {
     this.stopped = false;
     this.lastVoiceAt = null; // timestamp of the most recent speech frame fed (end-of-speech marker)
     this.awaitingAudio = null; // timing context while waiting on the TTS first chunk
+    this.segmentStartedAt = null; // when the current spoken segment began (for max-segment flush)
+    this.flushedForSilence = false; // already forced a flush for the current pause?
   }
 
   // A failed Sarvam key (auth/quota/rate) rotates to the next key and rebuilds
@@ -110,6 +125,8 @@ class TranslationPipeline {
     // Snapshot + reset end-of-speech marker so the next utterance measures fresh.
     const voiceEndAt = this.lastVoiceAt;
     this.lastVoiceAt = null;
+    this.segmentStartedAt = null; // segment closed; next voiced frame opens a fresh one
+    this.flushedForSilence = false;
     const stt_ms = voiceEndAt ? transcriptAt - voiceEndAt : null;
     log.stt(this.scope, `heard: "${text}"${stt_ms != null ? ` (recognize +${stt_ms}ms)` : ''}`);
 
@@ -171,7 +188,19 @@ class TranslationPipeline {
   }
 
   feed(pcm) {
-    if (hasVoice(pcm)) this.lastVoiceAt = Date.now();
+    const now = Date.now();
+    if (hasVoice(pcm)) {
+      this.lastVoiceAt = now;
+      if (this.segmentStartedAt == null) this.segmentStartedAt = now;
+      this.flushedForSilence = false;
+    } else if (this.lastVoiceAt && !this.flushedForSilence && now - this.lastVoiceAt >= SILENCE_FLUSH_MS) {
+      this.stt?.flush(); // brief pause between clauses -> finalize now, don't wait out Saaras's timeout
+      this.flushedForSilence = true;
+    }
+    if (this.segmentStartedAt && now - this.segmentStartedAt >= MAX_SEGMENT_MS) {
+      this.stt?.flush(); // nonstop speech -> force periodic output so listeners aren't left silent
+      this.segmentStartedAt = now;
+    }
     // Every frame sent to STT is billable audio: bytes / 2 = samples, / rate = seconds.
     recordSttAudio(this.metricKey, pcm.length / 2 / LISTENER_SAMPLE_RATE);
     this.stt?.sendAudio(pcm);
@@ -183,6 +212,92 @@ class TranslationPipeline {
     this.tts?.close();
     log.pipe(this.scope, `STOPPED (handled ${this.utterances} utterance${this.utterances === 1 ? '' : 's'})`);
     log.metric(this.scope, `est. cost: ${costLine(this.metricKey)}`);
+    flushCost(this.metricKey, 'sarvam');
+  }
+}
+
+// OpenAI gpt-realtime-translate engine: ONE speech-to-speech socket per target
+// language. Streams translated audio while the speaker talks. Implements the
+// same feed()/stop() interface as TranslationPipeline so the room manager treats
+// them identically. Latency is measured as TTFB: first translated audio of a
+// segment minus the first spoken-voice frame of that segment.
+class OpenAIRealtimePipeline {
+  constructor(room, speakerLang, targetLang) {
+    this.room = room;
+    this.speakerLang = speakerLang;
+    this.targetLang = targetLang;
+    this.scope = `${room.id} ${speakerLang}->${targetLang} [gpt]`;
+    this.metricKey = `${room.id}|${speakerLang}->${targetLang}`;
+    this.apiKey = null;
+    this.translator = null;
+    this.utterances = 0;
+    this.restarts = 0;
+    this.stopped = false;
+    this.segmentStart = null; // first voiced frame of the current segment
+    this.awaitingFirstAudio = false;
+  }
+
+  start() {
+    this.apiKey = oaKeys.currentKey();
+    this.translator = createOpenAITranslator({
+      targetLang: this.targetLang,
+      label: this.scope,
+      onAudio: (pcm) => this.onAudio(pcm),
+      onTranscriptDone: () => this.onTranscriptDone(),
+      onError: (e) => this.handleError(e),
+    });
+    log.pipe(this.scope, `STARTED gpt-realtime-translate -> ${langName(this.targetLang)}`);
+  }
+
+  handleError(e) {
+    log.error(`[pipe ${this.scope}] ${e.message}`);
+    if (this.stopped || !oaKeys.isKeyError(e)) return;
+    if (this.restarts >= MAX_KEY_RESTARTS) {
+      log.warn(`[pipe ${this.scope}] key restarts exhausted — giving up`);
+      return;
+    }
+    if (!oaKeys.rotate(this.apiKey, e.message)) return;
+    this.restarts += 1;
+    this.translator?.close();
+    this.start();
+  }
+
+  feed(pcm) {
+    if (hasVoice(pcm) && this.segmentStart == null) {
+      this.segmentStart = Date.now();
+      this.awaitingFirstAudio = true;
+    }
+    recordOpenAiAudio(this.metricKey, pcm.length / 2 / LISTENER_SAMPLE_RATE, 0);
+    this.translator?.feed(pcm);
+  }
+
+  onAudio(pcm) {
+    if (this.awaitingFirstAudio && this.segmentStart != null) {
+      this.awaitingFirstAudio = false;
+      const e2e_ms = Date.now() - this.segmentStart;
+      const e2e = recordUtterance(this.metricKey, this.scope, {
+        stt_ms: null, translate_ms: null, tts_ms: null, e2e_ms,
+      });
+      sendControlToLang(this.room, this.targetLang, {
+        type: 'latency', last: e2e_ms, p50: e2e.p50, p95: e2e.p95, count: e2e.count,
+      });
+    }
+    recordOpenAiAudio(this.metricKey, 0, pcm.length / 2 / LISTENER_SAMPLE_RATE);
+    sendToLang(this.room, this.targetLang, pcm);
+  }
+
+  onTranscriptDone() {
+    this.utterances += 1;
+    this.segmentStart = null; // next voiced frame opens a fresh segment
+    this.awaitingFirstAudio = false;
+  }
+
+  stop() {
+    this.stopped = true;
+    this.translator?.close();
+    log.pipe(this.scope, `STOPPED (handled ${this.utterances} segment${this.utterances === 1 ? '' : 's'})`);
+    log.metric(this.scope, `est. cost: ${openaiCostLine(this.metricKey)}`);
+    flushCost(this.metricKey, 'openai');
   }
 }
 
@@ -198,14 +313,23 @@ export function syncPipelines(room) {
 
   let changed = false;
 
-  // Create missing pipelines.
+  // Create missing pipelines, picking the engine the speaker chose for the room.
   for (const lang of desired) {
     if (room.pipelines.has(lang)) continue; // language already covered — reuse it
-    if (!hasKeys()) {
+
+    let useOpenAI = room.provider === 'openai';
+    if (useOpenAI && !oaKeys.hasKeys()) {
+      log.warn(`[${room.id}] OPENAI_API_KEY missing — falling back to Sarvam for ${langName(lang)}`);
+      useOpenAI = false;
+    }
+    if (!useOpenAI && !hasKeys()) {
       log.warn(`[${room.id}] SARVAM_API_KEY missing — cannot translate to ${langName(lang)}`);
       continue;
     }
-    const p = new TranslationPipeline(room, room.speakerLang, lang);
+
+    const p = useOpenAI
+      ? new OpenAIRealtimePipeline(room, room.speakerLang, lang)
+      : new TranslationPipeline(room, room.speakerLang, lang);
     p.start();
     room.pipelines.set(lang, p);
     changed = true;

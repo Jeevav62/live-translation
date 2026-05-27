@@ -37,6 +37,7 @@ export class Room {
     this.createdAt = Date.now();
     this.speaker = null; // ws of the speaker, or null
     this.speakerLang = null; // 'hi' | 'en'
+    this.provider = 'sarvam'; // translation engine the speaker chose: 'sarvam' | 'openai'
     this.live = false; // speaker has started streaming
     this.listeners = new Set(); // Set<ws>
   }
@@ -168,6 +169,7 @@ export function listRooms() {
     managed: r.managed,
     createdAt: r.createdAt,
     speakerLang: r.speakerLang,
+    provider: r.provider,
     live: r.live,
     listeners: r.listeners.size,
   }));
