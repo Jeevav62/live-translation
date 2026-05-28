@@ -155,8 +155,22 @@ scripts/
 | Endpoint | What it gives you |
 |----------|-------------------|
 | `GET /health` | liveness check (`{ ok, uptime }`) |
-| `GET /metrics` | per-stage latency aggregates (avg / p50 / p95 / min / max) per room+language |
+| `GET /metrics` | per-stage latency aggregates (avg / p50 / p95 / min / max) per room+language (in-memory, current process) |
+| `GET /metrics/history` | durable latency aggregates from `logs/latency.jsonl` — survives restarts; groups by direction and by lab combo |
 | `GET /cost` | exact billable usage (STT seconds, TTS/translate chars) × configurable rates |
+
+### Provider Lab (`/lab.html`)
+
+An experiment page to **mix and match providers** — pick a STT, Translator, and TTS
+independently, speak, and hear the result looped back with **per-stage latency** shown live.
+Use it to find the lowest-latency combo that still sounds good in Hindi, then wire the winner
+into the main rooms. Providers appear once their key is set in `.env`:
+
+- **STT:** Sarvam Saaras · Deepgram Nova-3 · ElevenLabs Scribe v2
+- **Translate:** Sarvam
+- **TTS:** Sarvam Bulbul · Cartesia Sonic · ElevenLabs Flash v2.5
+
+Every lab run is logged to `logs/latency.jsonl`; compare combos at `/metrics/history`.
 
 Cost rates are placeholders — set the real Sarvam values via env (no redeploy):
 `SARVAM_STT_RATE_PER_MIN`, `SARVAM_TTS_RATE_PER_1K_CHARS`, `SARVAM_TRANSLATE_RATE_PER_1K_CHARS`, `SARVAM_CURRENCY`.

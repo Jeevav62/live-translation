@@ -106,6 +106,7 @@ export function costSnapshot() {
     total: { usage: fmtUsage(totals), cost: costOf(totals) },
     openai: openaiSnapshot(),
     lifetime: { ...lifetime, note: 'Cumulative across restarts (from logs/cost-lifetime.json). Sarvam in INR, OpenAI in USD.' },
+    labReference: LAB_RATES,
   };
 }
 
@@ -241,6 +242,19 @@ export function roomCost(roomId) {
 export function lifetimeCost() {
   return { ...lifetime };
 }
+
+// ── Lab provider reference rates (indicative, USD) ──────────────────────────
+// Published list prices for the experiment-lab providers, surfaced at /cost so
+// you can weigh latency vs cost when picking a combo. Indicative only — confirm
+// against each provider's dashboard; override via env.
+export const LAB_RATES = {
+  currency: 'USD',
+  deepgram: { unit: 'per audio min', rate: num(process.env.DEEPGRAM_RATE_PER_MIN, 0.0077) },
+  elevenSTT: { unit: 'per audio min', rate: num(process.env.ELEVEN_STT_RATE_PER_MIN, 0.006) },
+  elevenTTS: { unit: 'per 1k chars', rate: num(process.env.ELEVEN_TTS_RATE_PER_1K, 0.10) },
+  cartesia: { unit: 'per 1k chars', rate: num(process.env.CARTESIA_RATE_PER_1K, 0.025) },
+  note: 'Indicative list prices for the Provider Lab — confirm on each dashboard. Lab runs are tiny.',
+};
 
 export function resetCost() {
   usage.clear();

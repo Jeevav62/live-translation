@@ -29,7 +29,15 @@ import {
   routePath,
   LISTENER_SAMPLE_RATE,
 } from './pipeline/index.js';
+import { LabPipeline } from './pipeline/lab.js';
+import { hasKeys as openaiHasKeys } from './openaiKeys.js';
 import { log } from './log.js';
+
+const VALID_PROVIDERS = {
+  stt: new Set(['sarvam', 'deepgram', 'eleven']),
+  translate: new Set(['sarvam']),
+  tts: new Set(['sarvam', 'cartesia', 'eleven']),
+};
 
 const VALID_LANGS = new Set(['hi', 'en']);
 const LANG_NAME = { hi: 'Hindi', en: 'English' };
@@ -47,6 +55,7 @@ export function handleConnection(ws) {
 
   ws.on('message', (data, isBinary) => {
     if (isBinary) {
+      if (ws.lab) { ws.lab.feed(Buffer.isBuffer(data) ? data : Buffer.from(data)); return; }
       handleAudioFrame(ws, data);
       return;
     }
@@ -61,6 +70,7 @@ export function handleConnection(ws) {
   });
 
   ws.on('close', () => {
+    if (ws.lab) { ws.lab.stop(); ws.lab = null; log.conn(`#${ws.connId} lab session ended`); }
     const roomId = ws.meta?.roomId;
     const role = ws.meta?.role;
     const room = leave(ws);
@@ -92,9 +102,47 @@ function handleControl(ws, msg) {
       return doGoLive(ws);
     case 'set-lang':
       return doSetLang(ws, msg);
+    case 'lab-join':
+      return doLabJoin(ws, msg);
+    case 'lab-stop':
+      if (ws.lab) { ws.lab.stop(); ws.lab = null; }
+      return;
     default:
       sendControl(ws, { type: 'error', message: `Unknown message type: ${msg.type}` });
   }
+}
+
+// Experiment lab: a solo loopback chain with a chosen STT/Translate/TTS combo.
+// Not part of any room — translated audio is streamed back to this same socket.
+function doLabJoin(ws, msg) {
+  if (ws.lab) { ws.lab.stop(); ws.lab = null; }
+  if (ws.meta) return sendControl(ws, { type: 'error', message: 'This socket already joined a room' });
+  if (!VALID_LANGS.has(msg.speakerLang) || !VALID_LANGS.has(msg.targetLang)) {
+    return sendControl(ws, { type: 'error', message: 'Invalid speaker/target language' });
+  }
+  const engine = msg.engine === 'gpt' ? 'gpt' : 'pipeline';
+  if (engine === 'gpt' && !openaiHasKeys()) {
+    return sendControl(ws, { type: 'error', message: 'GPT Realtime needs an OPENAI_API_KEY' });
+  }
+  const stt = VALID_PROVIDERS.stt.has(msg.sttProvider) ? msg.sttProvider : 'sarvam';
+  const translateProvider = VALID_PROVIDERS.translate.has(msg.translateProvider) ? msg.translateProvider : 'sarvam';
+  const tts = VALID_PROVIDERS.tts.has(msg.ttsProvider) ? msg.ttsProvider : 'sarvam';
+
+  ws.lab = new LabPipeline({
+    engine,
+    sttProvider: stt,
+    translateProvider,
+    ttsProvider: tts,
+    sttModel: typeof msg.sttModel === 'string' ? msg.sttModel : null,
+    ttsModel: typeof msg.ttsModel === 'string' ? msg.ttsModel : null,
+    speakerLang: msg.speakerLang,
+    targetLang: msg.targetLang,
+    onAudio: (pcm) => { if (ws.readyState === ws.OPEN) ws.send(pcm); },
+    onControl: (m) => sendControl(ws, m),
+  });
+  ws.lab.start();
+  log.room(`#${ws.connId} LAB ${ws.lab.combo} ${lang(msg.speakerLang)}->${lang(msg.targetLang)}`);
+  sendControl(ws, { type: 'lab-joined', sampleRate: LISTENER_SAMPLE_RATE, combo: ws.lab.combo });
 }
 
 function doJoin(ws, msg) {

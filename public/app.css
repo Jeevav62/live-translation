@@ -243,6 +243,18 @@ input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border: 0; bord
 .waiting.show { display: flex; }
 .waiting .spin { width: 14px; height: 14px; border: 2px solid #fcd9a8; border-top-color: #d97706; border-radius: 50%; animation: spin 0.8s linear infinite; }
 
+/* ---- provider lab ---- */
+.lab-langs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.prov-row { display: flex; gap: 8px; }
+.prov-row select:first-child { flex: 1; }
+.prov-row .model-sel { flex: 0 0 auto; max-width: 46%; }
+.lab-metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 14px 0 4px; }
+.lab-metric { background: #f1f5f9; border-radius: 12px; padding: 12px 10px; text-align: center; }
+.lab-metric .lbl { display: block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-ink); }
+.lab-metric strong { font-size: 1.2rem; font-weight: 800; color: var(--ink); }
+.lab-metric.hero { grid-column: 1 / -1; background: linear-gradient(135deg, #eef2ff, #e0f2fe); }
+.lab-metric.hero strong { font-size: 1.6rem; }
+
 /* ---- animations ---- */
 @keyframes fade-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes fade-down { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
