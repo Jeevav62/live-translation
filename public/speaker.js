@@ -40,7 +40,13 @@ function stopTimer() { clearInterval(timerInt); timerInt = null; els.timer.textC
 
 // Show the engine picker only if the server has an OpenAI key configured.
 fetch('/api/config').then((r) => r.json()).then((cfg) => {
-  if (cfg?.providers?.openai) els.enginewrap.style.display = 'block';
+  const hasOpenAI = cfg?.providers?.openai;
+  const hasCartesia = cfg?.providers?.cartesia;
+  if (hasOpenAI || hasCartesia) els.enginewrap.style.display = 'block';
+  for (const opt of els.engine.options) {
+    if (opt.value === 'openai' && !hasOpenAI) opt.style.display = 'none';
+    if (opt.value === 'cartesia' && !hasCartesia) opt.style.display = 'none';
+  }
 }).catch(() => {});
 
 // Remember across a page refresh that we were broadcasting this room, so we can
@@ -51,8 +57,8 @@ const wasLive = sessionStorage.getItem(LIVE_KEY) === roomId;
 // Restore the engine choice across a refresh (otherwise it'd reset to Sarvam).
 const PROVIDER_KEY = 'lt-provider';
 const savedProvider = sessionStorage.getItem(PROVIDER_KEY);
-if (savedProvider === 'sarvam' || savedProvider === 'openai') els.engine.value = savedProvider;
-if (savedProvider === 'openai') els.enginewrap.style.display = 'block';
+if (savedProvider === 'sarvam' || savedProvider === 'openai' || savedProvider === 'cartesia') els.engine.value = savedProvider;
+if (savedProvider === 'openai' || savedProvider === 'cartesia') els.enginewrap.style.display = 'block';
 
 function setBadge(onAir) {
   els.badge.className = 'pill ' + (onAir ? 'air' : 'idle');

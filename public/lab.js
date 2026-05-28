@@ -265,8 +265,37 @@ function resetReadouts() {
   els.said.innerHTML = '<span class="cap-empty">The translated text appears here…</span>';
 }
 
+// ---- past runs comparison table ----
+async function loadHistory() {
+  const el = document.getElementById('histtable');
+  try {
+    const data = await (await fetch('/metrics/history')).json();
+    const dirs = Object.entries(data.byDirection || {});
+    if (!dirs.length) { el.innerHTML = '<span class="cap-empty">No runs yet.</span>'; return; }
+    dirs.sort((a, b) => (a[1].e2e_ms.p50 || 9999) - (b[1].e2e_ms.p50 || 9999));
+    const rows = dirs.map(([combo, d], i) => {
+      const p50 = d.e2e_ms.p50; const n = d.e2e_ms.count;
+      const stt = d.stt_ms.count ? d.stt_ms.avg + 'ms' : '—';
+      const tr = d.translate_ms.count ? d.translate_ms.avg + 'ms' : '—';
+      const tts = d.tts_ms.count ? d.tts_ms.avg + 'ms' : '—';
+      const cls = p50 < 600 ? 'good' : p50 < 1200 ? 'ok' : 'bad';
+      const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
+      return `<tr>
+        <td>${medal}<strong>${escapeHtml(combo)}</strong></td>
+        <td><span class="lat ${cls}">${(p50/1000).toFixed(2)}s</span></td>
+        <td style="color:var(--muted-ink)">${n}</td>
+        <td style="color:var(--muted-ink);font-size:0.8rem">${stt} · ${tr} · ${tts}</td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<table class="hist-table"><thead><tr><th>Combo</th><th>E2E p50</th><th>n</th><th>STT · TR · TTS (avg)</th></tr></thead><tbody>${rows}</tbody></table>`;
+  } catch { el.innerHTML = '<span class="cap-empty">Could not load history.</span>'; }
+}
+loadHistory();
+document.getElementById('refreshhist').addEventListener('click', loadHistory);
+
 function stop() {
   running = false; labReady = false;
+  setTimeout(loadHistory, 800); // refresh table after pipeline flushes metrics
   els.go.textContent = 'Go';
   els.go.classList.remove('live');
   setBadge(false, 'Idle');

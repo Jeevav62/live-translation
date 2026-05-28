@@ -28,7 +28,7 @@ app.get('/health', (_req, res) => res.json({ ok: true, uptime: process.uptime() 
 app.get('/api/config', (_req, res) => {
   const lab = labKeyCounts();
   res.json({
-    providers: { sarvam: sarvamKeyCount() > 0, openai: openaiKeyCount() > 0 },
+    providers: { sarvam: sarvamKeyCount() > 0, openai: openaiKeyCount() > 0, cartesia: lab.cartesia > 0 },
     lab: {
       stt: { sarvam: sarvamKeyCount() > 0, deepgram: lab.deepgram > 0, eleven: lab.eleven > 0 },
       translate: { sarvam: sarvamKeyCount() > 0 },
