@@ -65,9 +65,12 @@
       .lablink { text-align: center; margin: -8px 2px 16px; }
       .lablink a { color: #a9c2ef; font-size: 0.85rem; text-decoration: none; border: 1px dashed rgba(148,163,184,0.4); padding: 8px 14px; border-radius: 999px; display: inline-block; }
       .lablink a:hover { background: rgba(255,255,255,0.06); }
+      #ltcost-btn { position: fixed; top: 16px; right: 16px; width: auto; padding: 8px 14px; border-radius: 999px; font-size: 0.82rem; font-weight: 700; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18); color: #e8eefb; backdrop-filter: blur(8px); box-shadow: none; z-index: 40; }
+      #ltcost-btn:hover { background: rgba(255,255,255,0.18); filter: none; }
     </style>
   </head>
   <body>
+    <button id="ltcost-btn">💰 Total spend</button>
     <div class="brand">
       <div class="logo">🗣️ Live Translation</div>
       <div class="tag">Real-time multilingual audio for presentation rooms</div>
@@ -222,15 +225,38 @@
           const lt = c.lifetime || { sarvamINR: 0, openaiUSD: 0 };
           const liveINR = c.total?.cost?.total || 0;
           const liveUSD = c.openai?.total?.cost?.total || 0;
-          document.getElementById('spend').innerHTML =
-            `Project spend (lifetime): <b>${fmtINR(lt.sarvamINR)}</b> Sarvam · <b>${fmtUSD(lt.openaiUSD)}</b> GPT` +
-            `<br /><span class="live">this session: ${fmtINR(liveINR)} · ${fmtUSD(liveUSD)}</span>`;
+          const sessionText = (liveINR > 0 || liveUSD > 0)
+            ? `This session: <b>${fmtINR(liveINR)}</b> Sarvam · <b>${fmtUSD(liveUSD)}</b> GPT`
+            : `This session: <span class="live">no usage yet</span>`;
+          document.getElementById('spend').innerHTML = sessionText;
         } catch {}
       }
 
       const modal = document.getElementById('modal');
       document.getElementById('modalclose').addEventListener('click', () => modal.classList.remove('show'));
       modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('show'); });
+
+      // ── lifetime cost button ──
+      document.getElementById('ltcost-btn').addEventListener('click', async () => {
+        try {
+          const c = await api('GET', '/cost');
+          const lt = c.lifetime || { sarvamINR: 0, openaiUSD: 0 };
+          const liveINR = c.total?.cost?.total || 0;
+          const liveUSD = c.openai?.total?.cost?.total || 0;
+          const sarvamBreakdown = c.total?.usage || {};
+          document.getElementById('modalbody').innerHTML = `
+            <h2>💰 Total spend</h2>
+            <p class="desc">Permanent log across all restarts</p>
+            <div class="cost-grp">Lifetime (all sessions)</div>
+            <div class="cost-row"><span>Sarvam</span><span><b>${fmtINR(lt.sarvamINR)}</b></span></div>
+            <div class="cost-row"><span>GPT Realtime</span><span><b>${fmtUSD(lt.openaiUSD)}</b></span></div>
+            <div class="cost-grp">This session</div>
+            <div class="cost-row"><span>Sarvam · ${Math.round(sarvamBreakdown.sttMinutes || 0)} min STT · ${sarvamBreakdown.ttsChars || 0} ch TTS</span><span>${fmtINR(liveINR)}</span></div>
+            <div class="cost-row"><span>GPT Realtime · ${c.openai?.total?.cost?.minutes || 0} min</span><span>${fmtUSD(liveUSD)}</span></div>
+            <p class="hint">Lifetime total persists in <code>logs/cost-lifetime.json</code>. Sarvam in INR, GPT in USD.</p>`;
+          modal.classList.add('show');
+        } catch (e) { alert('Could not load cost: ' + e.message); }
+      });
 
       async function showRoomCost(id) {
         try {
@@ -255,5 +281,6 @@
       updateSpend();
       setInterval(() => { refresh(); updateSpend(); }, 4000);
     </script>
-  </body>
+    <script src="theme.js"></script>
+</body>
 </html>

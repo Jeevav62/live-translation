@@ -86,10 +86,19 @@
           <input type="range" id="vol" min="0" max="150" value="100" />
           <span id="volout">100%</span>
         </div>
-        <p class="hint"><a href="/metrics/history" target="_blank">📊 Open /metrics/history</a> to compare all combos you've tested.</p>
+      </div>
+
+      <div class="card" id="histcard">
+        <div class="topline">
+          <h2>Past runs</h2>
+          <button class="btn-ghost" id="refreshhist" style="width:auto;padding:8px 14px;font-size:0.82rem">↻ Refresh</button>
+        </div>
+        <p class="hint" style="margin:0 0 12px">All combos tested — fastest p50 first. Updates after each session.</p>
+        <div id="histtable"><span class="cap-empty">No runs yet — go test some combos above.</span></div>
       </div>
     </div>
 
     <script type="module" src="lab.js"></script>
-  </body>
+    <script src="theme.js"></script>
+</body>
 </html>

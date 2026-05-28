@@ -19,7 +19,7 @@ const V3_SYNTH_RATE = 24000;
 const SYSTEM_RATE = 16000;
 
 export function createTTS({ apiKey, targetLang, sampleRate = 16000, model, speaker, label = '', onAudio, onError }) {
-  const modelId = model || process.env.SARVAM_TTS_MODEL || 'bulbul:v2';
+  const modelId = model || process.env.SARVAM_TTS_MODEL || 'bulbul:v3';
   const isV3 = modelId === 'bulbul:v3';
   const synthRate = isV3 ? V3_SYNTH_RATE : sampleRate;
   const defaultSpeaker = isV3 ? V3_SPEAKER : V2_SPEAKER;

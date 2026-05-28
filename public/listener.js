@@ -140,7 +140,8 @@ function refreshSpeaker() {
   if (!listening) { els.speaker.textContent = '—'; els.waiting.classList.remove('show'); return; }
   if (speakerLive) {
     const translated = speakerLang && els.lang.value !== speakerLang;
-    const eng = translated && engine ? ` · via ${engine === 'openai' ? 'GPT' : 'Sarvam'}` : '';
+    const engLabel = engine === 'openai' ? 'GPT' : engine === 'cartesia' ? 'Sarvam+Cartesia ⚡' : 'Sarvam';
+    const eng = translated && engine ? ` · via ${engLabel}` : '';
     els.speaker.textContent = `Live · ${LANG_NAME[speakerLang] || speakerLang || '?'}${eng}`;
     els.waiting.classList.remove('show');
   } else {

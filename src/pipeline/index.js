@@ -6,6 +6,7 @@
 
 import { createSTT, createTTS, translateText } from './provider.js';
 import { createOpenAITranslator } from './openaiRealtime.js';
+import { createTTS as cartesiaTTS } from './cartesiaTTS.js';
 import { sendToLang, sendControlToLang } from '../relay.js';
 import { log } from '../log.js';
 import { recordUtterance } from '../metrics.js';
@@ -15,6 +16,7 @@ import {
 } from '../cost.js';
 import { currentKey, hasKeys, isKeyError, rotate } from '../sarvamKeys.js';
 import * as oaKeys from '../openaiKeys.js';
+import { cartesia as cartesiaPool } from '../labKeys.js';
 
 const MAX_KEY_RESTARTS = 4; // cap auto-restarts when a key fails, to avoid loops
 
@@ -305,6 +307,40 @@ class OpenAIRealtimePipeline {
 }
 
 
+// Sarvam STT + Sarvam translate + Cartesia TTS — fastest confirmed combo (511ms p50).
+// Same accuracy as the default Sarvam chain (Saaras STT unchanged), only TTS swapped.
+class CartesiaPipeline extends TranslationPipeline {
+  start() {
+    this.apiKey = currentKey();
+    const onError = (e) => this.handleError(e);
+
+    this.tts = cartesiaTTS({
+      apiKey: cartesiaPool.currentKey(),
+      targetLang: this.targetLang,
+      sampleRate: LISTENER_SAMPLE_RATE,
+      label: this.scope,
+      onAudio: (pcm) => this.onAudio(pcm),
+      onError,
+    });
+
+    const mode = this.path === 'stt_translate' ? 'translate' : 'transcribe';
+    this.stt = createSTT({
+      apiKey: this.apiKey,
+      mode,
+      sampleRate: LISTENER_SAMPLE_RATE,
+      label: this.scope,
+      onTranscript: (text) => this.onTranscript(text),
+      onError,
+    });
+
+    log.pipe(
+      this.scope,
+      `STARTED ${langName(this.speakerLang)}->${langName(this.targetLang)} ` +
+        `(STT mode=${mode}${this.path === 'stt_transcribe_translate' ? ' + text-translate' : ''} · TTS=Cartesia)`
+    );
+  }
+}
+
 // Reconcile a room's live pipelines with current listener languages.
 // At most ONE pipeline per target language exists at any time; listeners of an
 // already-covered language reuse the running pipeline (no new one is created).
@@ -321,9 +357,15 @@ export function syncPipelines(room) {
     if (room.pipelines.has(lang)) continue; // language already covered — reuse it
 
     let useOpenAI = room.provider === 'openai';
+    let useCartesia = room.provider === 'cartesia';
+
     if (useOpenAI && !oaKeys.hasKeys()) {
       log.warn(`[${room.id}] OPENAI_API_KEY missing — falling back to Sarvam for ${langName(lang)}`);
       useOpenAI = false;
+    }
+    if (useCartesia && !cartesiaPool.hasKeys()) {
+      log.warn(`[${room.id}] CARTESIA_API_KEY missing — falling back to Sarvam for ${langName(lang)}`);
+      useCartesia = false;
     }
     if (!useOpenAI && !hasKeys()) {
       log.warn(`[${room.id}] SARVAM_API_KEY missing — cannot translate to ${langName(lang)}`);
@@ -332,7 +374,9 @@ export function syncPipelines(room) {
 
     const p = useOpenAI
       ? new OpenAIRealtimePipeline(room, room.speakerLang, lang)
-      : new TranslationPipeline(room, room.speakerLang, lang);
+      : useCartesia
+        ? new CartesiaPipeline(room, room.speakerLang, lang)
+        : new TranslationPipeline(room, room.speakerLang, lang);
     p.start();
     room.pipelines.set(lang, p);
     changed = true;
