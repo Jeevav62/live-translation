@@ -8,8 +8,9 @@ import { handleConnection, closeRoomSockets } from './signaling.js';
 import { createRoom, renameRoom, deleteRoom, listRooms, getRoom } from './rooms.js';
 import { keyCount as sarvamKeyCount } from './sarvamKeys.js';
 import { keyCount as openaiKeyCount } from './openaiKeys.js';
+import { labKeyCounts } from './labKeys.js';
 import { log } from './log.js';
-import { snapshot } from './metrics.js';
+import { snapshot, latencyHistory } from './metrics.js';
 import { costSnapshot, roomCost } from './cost.js';
 import { qrPng } from './qr.js';
 
@@ -22,9 +23,19 @@ app.use(express.json());
 // Health check for the platform/proxy (Easypanel, Traefik, etc.).
 app.get('/health', (_req, res) => res.json({ ok: true, uptime: process.uptime() }));
 
-// Which translation engines are available (drives the speaker's engine picker).
-app.get('/api/config', (_req, res) =>
-  res.json({ providers: { sarvam: sarvamKeyCount() > 0, openai: openaiKeyCount() > 0 } }));
+// Which providers are available. `providers` drives the speaker engine picker;
+// `lab` (per-role booleans) drives the experiment page dropdowns.
+app.get('/api/config', (_req, res) => {
+  const lab = labKeyCounts();
+  res.json({
+    providers: { sarvam: sarvamKeyCount() > 0, openai: openaiKeyCount() > 0 },
+    lab: {
+      stt: { sarvam: sarvamKeyCount() > 0, deepgram: lab.deepgram > 0, eleven: lab.eleven > 0 },
+      translate: { sarvam: sarvamKeyCount() > 0 },
+      tts: { sarvam: sarvamKeyCount() > 0, cartesia: lab.cartesia > 0, eleven: lab.eleven > 0 },
+    },
+  });
+});
 
 // --- Room dashboard API ---------------------------------------------------
 // In-memory now (see rooms.js roomStore seam). NOTE: create/delete are open for
@@ -64,6 +75,10 @@ app.use(express.static(join(__dirname, '..', 'public')));
 // Live latency aggregates (avg/p50/p95/min/max per room+language) for the
 // translated path. Handy during the demo: open in a tab or curl it.
 app.get('/metrics', (_req, res) => res.json(snapshot()));
+
+// Durable latency aggregates from logs/latency.jsonl — survives restarts, so it
+// covers ALL past sessions (e.g. compare hi->en vs en->hi end-to-end).
+app.get('/metrics/history', (_req, res) => res.json(latencyHistory()));
 
 // Estimated Sarvam cost: exact usage (audio seconds / chars) x configurable rates.
 app.get('/cost', (_req, res) => res.json(costSnapshot()));
@@ -108,8 +123,12 @@ server.listen(PORT, () => {
   log.info(`listening on http://localhost:${PORT}`);
   log.info(`Sarvam API key: ${keyState}`);
   log.info(`OpenAI API key: ${openaiKeyCount() > 0 ? `${openaiKeyCount()} key(s) — gpt-realtime-translate available` : 'none (GPT engine disabled)'}`);
+  const lab = labKeyCounts();
+  const labArmed = Object.entries(lab).filter(([, n]) => n > 0).map(([p, n]) => `${p}(${n})`);
+  log.info(`Lab providers:  ${labArmed.length ? labArmed.join(', ') : 'none configured'}`);
   log.info(`Speaker:  http://localhost:${PORT}/speaker.html?room=main`);
   log.info(`Listener: http://localhost:${PORT}/listener.html?room=main`);
   log.info(`Metrics:  http://localhost:${PORT}/metrics`);
   log.info(`Cost:     http://localhost:${PORT}/cost`);
+  log.info(`Lab:      http://localhost:${PORT}/lab.html`);
 });
