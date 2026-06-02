@@ -2,15 +2,19 @@
 
 Real-time speech translation for live presentations. A **speaker** talks in one
 language; each **listener** hears it in the language *they* choose — with
-interpreter-style latency. Each room is shareable via a link (QR code in
-progress), with one speaker and any number of listeners.
+interpreter-style latency. Each room has **one QR code that everyone scans** —
+speaker and audience alike — then each person picks their role and language.
+One speaker per room, unlimited listeners.
 
 - **Same language** (e.g. Hindi → Hindi): audio is relayed raw — no AI, lowest latency (~100–150ms).
 - **Different language** (e.g. English → Hindi): `Speech-to-Text → (Translate) → Text-to-Speech`.
 - **Top priorities:** accuracy and latency.
 
 Powered by [Sarvam AI](https://www.sarvam.ai) (Saaras STT, Bulbul TTS, text-translate),
-behind a provider-agnostic layer so other engines (e.g. Bhashini) can be swapped in later.
+behind a provider-agnostic layer. The **speaker can pick the translation engine per room**:
+**Sarvam** (STT → translate → TTS) or **OpenAI `gpt-realtime-translate`** (one speech-to-speech
+socket that streams translation while you talk). The GPT option appears only when an
+`OPENAI_API_KEY` is configured.
 
 ---
 
@@ -92,7 +96,14 @@ PORT=3000
 npm start        # or: npm run dev  (auto-restart on file changes)
 ```
 
-Open two tabs:
+Open http://localhost:3000 — the **room dashboard**. Click **Create** to mint a
+room (unique code + QR); you're taken to its QR screen (`host.html`). Everyone
+scans the same QR → `join.html` → pick **Speaker** or **Listener** + a language.
+Rename or delete rooms from the dashboard; deleting disconnects everyone in it.
+A listener is kept to **one room per browser** (joining another evicts the first).
+
+For quick local testing you can also jump straight in:
+
 - **Speaker:**  http://localhost:3000/speaker.html?room=main
 - **Listener:** http://localhost:3000/listener.html?room=main
 - **Metrics:**  http://localhost:3000/metrics
@@ -122,15 +133,64 @@ src/
     sarvamTTS.js         Bulbul streaming TTS client
     provider.js          provider-agnostic interface (Sarvam now, others later)
 public/
+  index.html             room dashboard: create / list / rename / delete + per-room QR
+  host.html              projector screen: one room QR everyone scans
+  join.html              role picker after scan (Speaker / Listener + language)
   speaker.html / .js     mic capture → 16kHz PCM16 → WebSocket
   listener.html / .js    receive audio frames → jitter buffer → playback
+  app.css                shared stylesheet for all pages
   audio-utils.js         Float32 ↔ Int16, downsampling
   pcm-worklet.js         AudioWorklet mic capture
 scripts/
   ws-test.mjs            relay smoke test (no API)
   sarvam-test.mjs        Sarvam STT/TTS round-trip self-test
-  phase3-test.mjs        full English→Hindi pipeline + metrics verification
+  phase3-test.mjs        full English→Hindi pipeline + metrics + cost verification
+  multiroom-test.mjs     multi-room isolation + QR endpoint verification
 ```
+
+---
+
+## Observability
+
+| Endpoint | What it gives you |
+|----------|-------------------|
+| `GET /health` | liveness check (`{ ok, uptime }`) |
+| `GET /metrics` | per-stage latency aggregates (avg / p50 / p95 / min / max) per room+language (in-memory, current process) |
+| `GET /metrics/history` | durable latency aggregates from `logs/latency.jsonl` — survives restarts; groups by direction and by lab combo |
+| `GET /cost` | exact billable usage (STT seconds, TTS/translate chars) × configurable rates |
+
+### Provider Lab (`/lab.html`)
+
+An experiment page to **mix and match providers** — pick a STT, Translator, and TTS
+independently, speak, and hear the result looped back with **per-stage latency** shown live.
+Use it to find the lowest-latency combo that still sounds good in Hindi, then wire the winner
+into the main rooms. Providers appear once their key is set in `.env`:
+
+- **STT:** Sarvam Saaras · Deepgram Nova-3 · ElevenLabs Scribe v2
+- **Translate:** Sarvam
+- **TTS:** Sarvam Bulbul · Cartesia Sonic · ElevenLabs Flash v2.5
+
+Every lab run is logged to `logs/latency.jsonl`; compare combos at `/metrics/history`.
+
+Cost rates are placeholders — set the real Sarvam values via env (no redeploy):
+`SARVAM_STT_RATE_PER_MIN`, `SARVAM_TTS_RATE_PER_1K_CHARS`, `SARVAM_TRANSLATE_RATE_PER_1K_CHARS`, `SARVAM_CURRENCY`.
+
+---
+
+## Deployment (Easypanel / Docker)
+
+The repo ships a `Dockerfile`. HTTPS is **required** in production (browsers block
+microphone access without it) — the client auto-uses `wss://` when served over HTTPS.
+
+**On Easypanel:**
+1. Create an app from this GitHub repo, branch `phase-4-qr-multiroom` (or your deploy branch).
+2. Build method: **Dockerfile**. App port: **3000**.
+3. Add environment variables:
+   - `SARVAM_API_KEY` = your key (required for translation; the repo never contains it)
+   - optionally the `SARVAM_*_RATE_*` cost vars above
+4. Attach your domain — Easypanel provisions HTTPS automatically. WebSockets pass
+   through its proxy by default; the app's 30s heartbeat keeps them alive.
+5. Open the domain → **Host a room** → share the QR with your audience.
 
 ---
 
@@ -139,4 +199,4 @@ scripts/
 - [x] **Phase 1** — Same-language relay end-to-end
 - [x] **Phase 2** — Hindi → English translation pipeline
 - [x] **Phase 3** — English → Hindi + full routing + latency metrics
-- [ ] **Phase 4** — QR codes, multi-room landing page, listener-side latency readout, robustness
+- [x] **Phase 4** — QR codes, multi-room landing page, listener-side latency readout, mid-session language switching

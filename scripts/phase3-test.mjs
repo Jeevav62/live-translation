@@ -16,6 +16,7 @@ import { createTTS } from '../src/pipeline/sarvamTTS.js';
 import { routePath, syncPipelines, feedAudio, destroyPipelines } from '../src/pipeline/index.js';
 import { getOrCreateRoom, joinAsSpeaker, joinAsListener } from '../src/rooms.js';
 import { snapshot } from '../src/metrics.js';
+import { costSnapshot } from '../src/cost.js';
 
 const SR = 16000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -32,8 +33,11 @@ function fakeWs(lang, role) {
     readyState: 1, // OPEN
     received: 0,
     frames: 0,
+    controls: [], // JSON control messages the server pushed to this client
     send(data) {
-      if (typeof data !== 'string') {
+      if (typeof data === 'string') {
+        try { this.controls.push(JSON.parse(data)); } catch {}
+      } else {
         this.frames += 1;
         this.received += data.length ?? data.byteLength ?? 0;
       }
@@ -125,6 +129,11 @@ async function main() {
   assert(listener2.received > 0, `2nd Hindi listener also received audio (${(listener2.received / 1024).toFixed(0)}KB) — fan-out works`);
   assert(speaker.received === 0, 'speaker received no audio back (correct)');
 
+  console.log('\n=== listener latency push (Phase 4) ===');
+  const latMsg = listener.controls.find((m) => m.type === 'latency');
+  assert(!!latMsg, 'Hindi listener received a latency control message');
+  assert(latMsg && latMsg.last > 0 && latMsg.p50 > 0, `latency push carries E2E numbers (last=${latMsg?.last}ms p50=${latMsg?.p50}ms)`);
+
   console.log('\n=== metrics ===');
   const snap = snapshot();
   const key = 'phase3-test|en->hi';
@@ -132,6 +141,15 @@ async function main() {
   assert(snap[key].e2e_ms.count >= 1, `e2e latency captured (n=${snap[key].e2e_ms.count})`);
   assert(snap[key].tts_ms.count >= 1, 'tts latency captured');
   console.log('  snapshot:', JSON.stringify(snap[key], null, 2).replace(/\n/g, '\n  '));
+
+  console.log('\n=== cost calculator (Phase 4) ===');
+  const cost = costSnapshot();
+  const ck = cost.perPipeline[key];
+  assert(!!ck, 'cost recorded for en->hi');
+  assert(ck.usage.sttSeconds > 0, `STT audio billed (${ck.usage.sttSeconds}s)`);
+  assert(ck.usage.ttsChars > 0, `TTS chars billed (${ck.usage.ttsChars} chars)`);
+  assert(ck.usage.translateChars > 0, `translate chars billed (${ck.usage.translateChars} chars)`);
+  console.log(`  this utterance ≈ ${cost.currency} ${ck.cost.total} (rates are placeholders) — usage:`, JSON.stringify(ck.usage));
 
   destroyPipelines(room);
   console.log('\nAll Phase 3 checks passed. ✅');

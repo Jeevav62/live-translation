@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Provider Lab — Live Translation</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>" />
+    <link rel="stylesheet" href="app.css" />
+  </head>
+  <body>
+    <a class="backlink" href="index.html">← Rooms</a>
+    <div class="brand">
+      <div class="logo">🧪 Provider Lab</div>
+      <div class="tag">Mix STT · Translate · TTS, speak, and compare latency</div>
+    </div>
+
+    <div class="wrap">
+      <div class="card">
+        <div class="topline">
+          <h2>Pipeline</h2>
+          <span class="pill idle" id="badge"><span class="d"></span><span id="badgetxt">Idle</span></span>
+        </div>
+
+        <label for="engine">Engine</label>
+        <select id="engine"></select>
+        <p class="hint" id="engnote"></p>
+
+        <div class="lab-langs">
+          <div>
+            <label for="src">I speak</label>
+            <select id="src"><option value="en">English</option><option value="hi">Hindi</option></select>
+          </div>
+          <div>
+            <label for="tgt">Translate to</label>
+            <select id="tgt"><option value="hi">Hindi</option><option value="en">English</option></select>
+          </div>
+        </div>
+
+        <div id="pipefields">
+        <label for="stt">Speech-to-Text</label>
+        <div class="prov-row">
+          <select id="stt"></select>
+          <select id="sttmodel" class="model-sel" style="display:none"></select>
+        </div>
+
+        <label for="translate">Translator</label>
+        <select id="translate"></select>
+        <p class="hint" id="trnote"></p>
+
+        <label for="tts">Text-to-Speech</label>
+        <div class="prov-row">
+          <select id="tts"></select>
+          <select id="ttsmodel" class="model-sel" style="display:none"></select>
+        </div>
+        </div><!-- /pipefields -->
+
+        <button class="btn-speaker mt" id="go">Go</button>
+        <p class="hint">Speak after you press Go — you'll hear the translation looped back. Switch any
+          dropdown while running to apply a new combo instantly.</p>
+        <p class="err" id="error"></p>
+      </div>
+
+      <div class="card">
+        <h2>Live result</h2>
+        <div class="status">
+          <div class="row"><span>Connection</span><strong><span class="dot" id="dot"></span><span id="conn">idle</span></strong></div>
+          <div class="row"><span>Combo</span><strong id="combo">—</strong></div>
+        </div>
+
+        <div class="lab-metrics">
+          <div class="lab-metric"><span class="lbl">STT</span><strong id="m-stt">—</strong></div>
+          <div class="lab-metric"><span class="lbl">Translate</span><strong id="m-tr">—</strong></div>
+          <div class="lab-metric"><span class="lbl">TTS</span><strong id="m-tts">—</strong></div>
+          <div class="lab-metric hero"><span class="lbl">End-to-end</span><strong id="m-e2e">—</strong></div>
+        </div>
+        <p class="hint" id="agg">median —</p>
+
+        <label>Heard (transcript)</label>
+        <div class="cap-body" id="heard"><span class="cap-empty">Your recognized speech appears here…</span></div>
+
+        <label>Translation (spoken)</label>
+        <div class="cap-body" id="said"><span class="cap-empty">The translated text appears here…</span></div>
+
+        <div class="vol-row">
+          <label for="vol">Volume</label>
+          <input type="range" id="vol" min="0" max="150" value="100" />
+          <span id="volout">100%</span>
+        </div>
+      </div>
+
+      <div class="card" id="histcard">
+        <div class="topline">
+          <h2>Past runs</h2>
+          <button class="btn-ghost" id="refreshhist" style="width:auto;padding:8px 14px;font-size:0.82rem">↻ Refresh</button>
+        </div>
+        <p class="hint" style="margin:0 0 12px">All combos tested — fastest p50 first. Updates after each session.</p>
+        <div id="histtable"><span class="cap-empty">No runs yet — go test some combos above.</span></div>
+      </div>
+    </div>
+
+    <script type="module" src="lab.js"></script>
+    <script src="theme.js"></script>
+</body>
+</html>

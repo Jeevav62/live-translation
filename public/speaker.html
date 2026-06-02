@@ -3,35 +3,70 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Speaker — Translation Rooms</title>
-    <style>
-      body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
-      h1 { font-size: 1.3rem; }
-      label { display: block; margin: 16px 0 4px; font-weight: 600; }
-      select, button { font-size: 1rem; padding: 10px; width: 100%; box-sizing: border-box; }
-      button { margin-top: 20px; border: 0; border-radius: 8px; background: #2563eb; color: #fff; cursor: pointer; }
-      button:disabled { background: #9ca3af; cursor: default; }
-      button.live { background: #dc2626; }
-      #status { margin-top: 20px; padding: 12px; border-radius: 8px; background: #f3f4f6; }
-      .row { display: flex; justify-content: space-between; margin: 6px 0; }
-      .err { color: #dc2626; }
-    </style>
+    <title>Speaker — Live Translation</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎤</text></svg>" />
+    <link rel="stylesheet" href="app.css" />
   </head>
   <body>
-    <h1>Speaker</h1>
-    <label for="room">Room</label>
-    <select id="room"></select>
-    <label for="lang">I will speak in</label>
-    <select id="lang">
-      <option value="hi">Hindi</option>
-      <option value="en">English</option>
-    </select>
-    <button id="go">Go Live</button>
-    <div id="status">
-      <div class="row"><span>Connection</span><strong id="conn">idle</strong></div>
-      <div class="row"><span>Listeners</span><strong id="count">0</strong></div>
-      <div class="row err"><span id="error"></span></div>
+    <a class="backlink" href="index.html">← Rooms</a>
+    <div class="brand">
+      <div class="logo">🎤 Speaker</div>
+      <div class="tag">Room <strong id="roomtag">—</strong></div>
     </div>
+
+    <div class="wrap">
+      <div class="card">
+        <div class="topline">
+          <h2>Broadcast</h2>
+          <span class="pill idle" id="badge"><span class="d"></span><span id="badgetxt">Off air</span></span>
+        </div>
+
+        <label for="lang">I will speak in</label>
+        <select id="lang">
+          <option value="hi">Hindi</option>
+          <option value="en">English</option>
+        </select>
+
+        <div id="enginewrap" style="display:none">
+          <label for="engine">Translation engine</label>
+          <select id="engine">
+            <option value="sarvam">Sarvam — Saaras STT + Bulbul v3 (default)</option>
+            <option value="cartesia">Sarvam + Cartesia TTS ⚡</option>
+            <option value="openai">GPT Realtime — speech-to-speech</option>
+          </select>
+          <p class="hint" id="enginehint">Sarvam+Cartesia is 35% faster than default with same accuracy. GPT costs more.</p>
+        </div>
+
+        <button class="btn-speaker mt" id="go">Go Live</button>
+        <div class="waiting" id="resume">↻ You were live before the refresh — tap <strong>&nbsp;Resume broadcast</strong>.</div>
+
+        <label>Mic level</label>
+        <div class="meter" id="meter">
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        </div>
+
+        <div class="status">
+          <div class="row"><span>Connection</span><strong><span class="dot" id="dot"></span><span id="conn">idle</span></strong></div>
+          <div class="row"><span>Live for</span><strong id="timer">00:00</strong></div>
+          <div class="row"><span>Listeners</span><strong>🎧 <span id="count">0</span></strong></div>
+          <div class="row" id="bylangrow" style="display:none"><span>By language</span><strong id="bylang">—</strong></div>
+        </div>
+        <p class="err" id="error"></p>
+      </div>
+
+      <div class="card qr-box">
+        <h2>Audience joins by scanning this</h2>
+        <div class="qr-frame"><img id="qr" alt="Room QR code" /></div>
+        <div class="roomcode"><span class="lbl">Room code</span><span id="roomcode">—</span></div>
+        <button class="btn-ghost mt" id="copy">📋 Copy join link</button>
+        <p class="hint">They scan, then pick their own language to hear.</p>
+      </div>
+    </div>
+
     <script type="module" src="speaker.js"></script>
-  </body>
+    <script src="theme.js"></script>
+</body>
 </html>

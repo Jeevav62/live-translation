@@ -23,6 +23,15 @@ export function sendToLang(room, lang, frame) {
   }
 }
 
+// Send a JSON control message to all listeners who want a specific language.
+// Used to push per-language latency readouts to that language's listeners.
+export function sendControlToLang(room, lang, obj) {
+  const msg = JSON.stringify(obj);
+  for (const ws of room.listeners) {
+    if (ws.meta.lang === lang && ws.readyState === OPEN) ws.send(msg);
+  }
+}
+
 // Broadcast a JSON control message to everyone in the room (speaker + listeners).
 export function broadcastControl(room, obj) {
   const msg = JSON.stringify(obj);
