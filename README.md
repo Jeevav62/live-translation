@@ -1,4 +1,24 @@
-# Live Translation — Real-Time Multilingual Audio for Presentation Rooms
+<div align="center">
+
+<img src="assets/banner.png" alt="Live Translation — Real-time speech translation for live rooms" width="100%" />
+
+# Live Translation
+
+### Real-time speech translation for presentation rooms — one QR, every language, interpreter-style latency.
+
+<sub>real-time speech translation · live interpreter · multilingual audio streaming · speech-to-speech · STT → translate → TTS · presentation translation · WebSocket audio relay</sub>
+
+[![Node 18+](https://img.shields.io/badge/Node-18+-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Realtime](https://img.shields.io/badge/realtime-WebSocket-3b82f6.svg)]()
+[![Sarvam AI](https://img.shields.io/badge/STT%20·%20TTS-Sarvam%20AI-22d3ee.svg)](https://www.sarvam.ai)
+[![OpenAI Realtime](https://img.shields.io/badge/optional-OpenAI%20Realtime-22c55e.svg)]()
+
+**[How it works](#how-it-works)** · **[Latency](#measured-latency)** · **[Quick Start](#getting-started)** · **[Deploy](#deployment-easypanel--docker)**
+
+</div>
+
+---
 
 Real-time speech translation for live presentations. A **speaker** talks in one
 language; each **listener** hears it in the language *they* choose — with
@@ -200,3 +220,25 @@ microphone access without it) — the client auto-uses `wss://` when served over
 - [x] **Phase 2** — Hindi → English translation pipeline
 - [x] **Phase 3** — English → Hindi + full routing + latency metrics
 - [x] **Phase 4** — QR codes, multi-room landing page, listener-side latency readout, mid-session language switching
+
+---
+
+## 🙋 Work With Me
+
+I'm **Jeeva** — I turn research papers into shipping products: reading the latest work and rebuilding it into real features, tools, and ideas people can use. This project is one example — production speech models (Sarvam, OpenAI Realtime) wrapped into a scan-a-QR live interpreter that real rooms can use.
+
+**What I do:**
+- 🔬 **Research → product** — take papers/models and ship them as usable features
+- 🗣️ **Fine-tune TTS & LLMs** — voice cloning, custom speech models, domain-tuned language models
+- 🛠️ **Practical ML & audio tooling** — pipelines, datasets, and apps that actually run
+
+I'm open to collaboration, open-source work, and hiring opportunities. If you need someone who reads the paper *and* ships the product, let's talk:
+
+- 🤗 **Hugging Face:** [huggingface.co/jeevav62](https://huggingface.co/jeevav62)
+- 🌐 **Portfolio:** [see my work](https://portfolio-3nmcwtia3-jeevav62s-projects.vercel.app/)
+
+---
+
+## 📜 License
+
+MIT — see [LICENSE](LICENSE). Free for commercial and personal use.

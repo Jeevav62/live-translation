@@ -3,6 +3,7 @@
   "name": "translation-rooms",
   "version": "0.1.0",
   "description": "Real-time multilingual audio streaming for presentation rooms",
+  "license": "MIT",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
