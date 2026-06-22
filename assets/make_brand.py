@@ -52,13 +52,13 @@ def make_banner():
 
     live_pill(ax, 1.25, 5.5, 1.0)
 
-    broadcast(ax, 2.1, 3.7, 2.6)
+    broadcast(ax, 1.75, 3.95, 1.95)
 
-    ax.text(3.5, 4.05, "Live Translation", color=WHITE, fontsize=50,
+    ax.text(3.75, 4.0, "Live Translation", color=WHITE, fontsize=48,
             fontweight="bold", va="center", ha="left")
-    ax.text(3.54, 3.05, "Real-time speech translation for live rooms",
+    ax.text(3.78, 3.02, "Real-time speech translation for live rooms",
             color=CYAN, fontsize=20, fontweight="bold", va="center", ha="left")
-    ax.text(3.54, 2.48, "one QR · every language · interpreter-style latency",
+    ax.text(3.78, 2.46, "one QR · every language · interpreter-style latency",
             color=MUTED, fontsize=15, va="center", ha="left")
 
     # language chips row — centered, with safe margins
