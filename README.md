@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/banner.png" alt="Live Translation — Real-time speech translation for live rooms" width="100%" />
+<img src="assets/banner.png?v=2" alt="Live Translation — Real-time speech translation for live rooms" width="100%" />
 
 # Live Translation
 
