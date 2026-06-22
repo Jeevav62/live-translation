@@ -99,7 +99,24 @@ real networks add ~100–300ms.
 - Node.js 18+ (developed on v25)
 - A Sarvam AI API key — sign up at [sarvam.ai](https://www.sarvam.ai) (₹1000 free credits)
 
-### Setup
+### 🐳 Option A — Docker
+
+```bash
+git clone https://github.com/Jeevav62/live-translation.git
+cd live-translation
+cp .env.example .env          # paste your SARVAM_API_KEY into .env
+docker compose up --build     # open http://localhost:3000
+```
+
+### ⚡ Option B — one-command script
+
+```bash
+bash setup.sh     # installs deps + creates .env (then add your key)
+bash run.sh       # starts the server on http://localhost:3000
+```
+
+### 🔧 Option C — manual
+
 ```bash
 npm install
 cp .env.example .env      # then paste your key into SARVAM_API_KEY

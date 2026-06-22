@@ -1,0 +1,13 @@
+services:
+  live-translation:
+    build: .
+    image: live-translation
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+    # Put SARVAM_API_KEY (and optional OPENAI_API_KEY / rate vars) in .env first:
+    #   cp .env.example .env
+    env_file:
+      - .env
+    restart: unless-stopped
